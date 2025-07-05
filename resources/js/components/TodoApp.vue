@@ -1,21 +1,9 @@
 <template>
   <div class="min-h-screen bg-gray-100 py-8">
-    <div class="max-w-4xl mx-auto px-4 relative">
-      <!-- Hamburger menu -->
-      <div class="absolute top-0 right-0 mt-4 mr-4 z-20">
-        <button @click="showLangMenu = !showLangMenu" class="p-2 rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-        <transition name="fade">
-          <div v-if="showLangMenu" class="absolute right-0 mt-2 bg-white border rounded shadow-lg p-3 min-w-[160px]">
-            <LanguageSwitcher :lang="lang" :t="t" @update:lang="setLang" />
-          </div>
-        </transition>
-      </div>
+    <div class="max-w-4xl mx-auto px-4">
       <div class="bg-white rounded-lg shadow-lg p-6">
         <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">{{ t('todoList') }}</h1>
+        <LanguageSwitcher :lang="lang" :t="t" @update:lang="setLang" />
         
         <!-- Add Todo Form -->
         <div class="mb-8 p-4 bg-gray-50 rounded-lg">
@@ -174,7 +162,6 @@ export default {
       },
       editingTodo: null,
       lang: 'en',
-      showLangMenu: false,
     };
   },
   methods: {
@@ -183,7 +170,6 @@ export default {
     },
     setLang(newLang) {
       this.lang = newLang;
-      this.showLangMenu = false;
     },
     async loadTodos() {
       try {
@@ -277,13 +263,4 @@ export default {
     await this.loadTodos();
   },
 };
-</script>
-
-<style>
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.2s;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-</style> 
+</script> 
