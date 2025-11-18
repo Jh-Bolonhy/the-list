@@ -1,5 +1,5 @@
 import './bootstrap';
 import { createApp } from 'vue';
-import TodoApp from './components/TodoApp.vue';
+import ElementApp from './components/ElementApp.vue';
 
-createApp(TodoApp).mount('#app');
+createApp(ElementApp).mount('#app');

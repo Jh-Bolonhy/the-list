@@ -1,12 +1,12 @@
-# Todo App - Laravel 12 + Vue.js
+# Element App - Laravel 12 + Vue.js
 
-A simple Todo list application built with Laravel 12 backend API and Vue.js frontend.
+A simple Element list application built with Laravel 12 backend API and Vue.js frontend.
 
 ## Features
 
-- ✅ Create, Read, Update, Delete (CRUD) operations for todos
-- ✅ Mark todos as completed/incomplete
-- ✅ Edit todo title and description
+- ✅ Create, Read, Update, Delete (CRUD) operations for elements
+- ✅ Mark elements as completed/incomplete
+- ✅ Edit element title and description
 - ✅ Modern, responsive UI with Tailwind CSS
 - ✅ Real-time updates without page refresh
 - ✅ RESTful API backend
@@ -30,7 +30,7 @@ A simple Todo list application built with Laravel 12 backend API and Vue.js fron
 
 1. **Clone or navigate to the project directory**
    ```bash
-   cd todo-app
+   cd the-list
    ```
 
 2. **Install PHP dependencies**
@@ -77,11 +77,11 @@ A simple Todo list application built with Laravel 12 backend API and Vue.js fron
 
 The application provides the following RESTful API endpoints:
 
-- `GET /api/todos` - Get all todos
-- `POST /api/todos` - Create a new todo
-- `GET /api/todos/{id}` - Get a specific todo
-- `PUT /api/todos/{id}` - Update a todo
-- `DELETE /api/todos/{id}` - Delete a todo
+- `GET /api/elements` - Get all elements
+- `POST /api/elements` - Create a new element
+- `GET /api/elements/{id}` - Get a specific element
+- `PUT /api/elements/{id}` - Update an element
+- `DELETE /api/elements/{id}` - Delete an element
 
 ### Frontend Development
 
@@ -100,61 +100,61 @@ npm run build
 ## Project Structure
 
 ```
-todo-app/
+the-list/
 ├── app/
 │   ├── Http/Controllers/Api/
-│   │   └── TodoController.php    # API controller
+│   │   └── ElementController.php    # API controller
 │   └── Models/
-│       └── Todo.php              # Todo model
+│       └── Element.php               # Element model
 ├── database/
 │   └── migrations/
-│       └── create_todos_table.php # Database migration
+│       └── create_todos_table.php    # Database migration
 ├── resources/
 │   ├── js/
 │   │   ├── components/
-│   │   │   └── TodoApp.vue       # Main Vue component
-│   │   ├── app.js                # Vue app entry point
-│   │   └── bootstrap.js          # Axios configuration
+│   │   │   └── ElementApp.vue        # Main Vue component
+│   │   ├── app.js                    # Vue app entry point
+│   │   └── bootstrap.js              # Axios configuration
 │   └── views/
-│       └── app.blade.php         # Main HTML template
+│       └── app.blade.php             # Main HTML template
 ├── routes/
-│   └── web.php                   # API routes
-└── vite.config.js                # Vite configuration
+│   └── web.php                       # API routes
+└── vite.config.js                    # Vite configuration
 ```
 
 ## API Usage Examples
 
-### Create a Todo
+### Create an Element
 ```bash
-curl -X POST http://localhost:8000/api/todos \
+curl -X POST http://localhost:8000/api/elements \
   -H "Content-Type: application/json" \
   -d '{"title": "Buy groceries", "description": "Milk, bread, eggs"}'
 ```
 
-### Get All Todos
+### Get All Elements
 ```bash
-curl http://localhost:8000/api/todos
+curl http://localhost:8000/api/elements
 ```
 
-### Update a Todo
+### Update an Element
 ```bash
-curl -X PUT http://localhost:8000/api/todos/1 \
+curl -X PUT http://localhost:8000/api/elements/1 \
   -H "Content-Type: application/json" \
   -d '{"completed": true}'
 ```
 
-### Delete a Todo
+### Delete an Element
 ```bash
-curl -X DELETE http://localhost:8000/api/todos/1
+curl -X DELETE http://localhost:8000/api/elements/1
 ```
 
 ## Database Schema
 
-The `todos` table contains the following fields:
+The `elements` table contains the following fields:
 
 - `id` - Primary key (auto-increment)
-- `title` - Todo title (required)
-- `description` - Todo description (optional)
+- `title` - Element title (required)
+- `description` - Element description (optional)
 - `completed` - Completion status (boolean, default: false)
 - `created_at` - Creation timestamp
 - `updated_at` - Last update timestamp

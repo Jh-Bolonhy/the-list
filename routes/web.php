@@ -1,11 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\TodoController;
+use App\Http\Controllers\Api\ElementController;
 
 // API Routes
 Route::prefix('api')->group(function () {
-    Route::apiResource('elements', TodoController::class);
+    Route::apiResource('elements', ElementController::class);
 });
 
 // Serve Vue.js app on root and all other non-API routes
