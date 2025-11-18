@@ -5,8 +5,8 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">{{ t('elementList') }}</h1>
         <LanguageSwitcher :lang="lang" :t="t" @update:lang="setLang" />
         
-        <!-- Add Element Form -->
-        <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+        <!-- Add Element Form (only show for active elements) -->
+        <div v-if="!showArchived" class="mb-8 p-4 bg-gray-50 rounded-lg">
           <h2 class="text-xl font-semibold mb-4">{{ t('addNewElement') }}</h2>
           <form @submit.prevent="addElement" class="space-y-4">
             <div>
@@ -41,7 +41,20 @@
 
         <!-- Element List -->
         <div class="space-y-4">
-          <h2 class="text-xl font-semibold mb-4">{{ t('yourElements') }}</h2>
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold">{{ t('yourElements') }}</h2>
+            <button
+              @click="toggleArchivedView"
+              :class="[
+                'px-4 py-2 text-white rounded-md text-sm transition-colors',
+                showArchived 
+                  ? 'bg-green-500 hover:bg-green-600' 
+                  : 'bg-gray-500 hover:bg-gray-600'
+              ]"
+            >
+              {{ showArchived ? t('showActive') : t('showArchived') }}
+            </button>
+          </div>
           
           <div v-if="loading" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -120,18 +133,36 @@
               
               <!-- Actions -->
               <div v-if="editingElement?.id !== element.id" class="flex space-x-2 ml-4">
-                <button
-                  @click="startEdit(element)"
-                  class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
-                >
-                  {{ t('edit') }}
-                </button>
-                <button
-                  @click="deleteElement(element.id)"
-                  class="px-3 py-1 bg-orange-400 text-white rounded-md hover:bg-orange-500 text-sm"
-                >
-                  {{ t('delete') }}
-                </button>
+                <!-- Actions for active (non-archived) elements -->
+                <template v-if="!showArchived">
+                  <button
+                    @click="startEdit(element)"
+                    class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
+                  >
+                    {{ t('edit') }}
+                  </button>
+                  <button
+                    @click="archiveElement(element.id)"
+                    class="px-3 py-1 bg-orange-400 text-white rounded-md hover:bg-orange-500 text-sm"
+                  >
+                    {{ t('archive') }}
+                  </button>
+                </template>
+                <!-- Actions for archived elements -->
+                <template v-else>
+                  <button
+                    @click="restoreElement(element.id)"
+                    class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+                  >
+                    {{ t('restore') }}
+                  </button>
+                  <button
+                    @click="removeElement(element.id)"
+                    class="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm"
+                  >
+                    {{ t('remove') }}
+                  </button>
+                </template>
               </div>
             </div>
           </div>
@@ -156,6 +187,7 @@ export default {
     return {
       elements: [],
       loading: true,
+      showArchived: false,
       newElement: {
         title: '',
         description: ''
@@ -174,7 +206,10 @@ export default {
     async loadElements() {
       try {
         this.loading = true;
-        const response = await axios.get('/api/elements');
+        const url = this.showArchived 
+          ? '/api/elements?archived=true' 
+          : '/api/elements';
+        const response = await axios.get(url);
         this.elements = response.data;
       } catch (error) {
         console.error('Error loading elements:', error);
@@ -182,6 +217,11 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    
+    toggleArchivedView() {
+      this.showArchived = !this.showArchived;
+      this.loadElements();
     },
     
     async addElement() {
@@ -235,17 +275,41 @@ export default {
       this.editingElement = null;
     },
     
-    async deleteElement(id) {
-      if (!confirm(this.t('confirmDelete'))) {
+    async archiveElement(id) {
+      if (!confirm(this.t('confirmArchive'))) {
         return;
       }
       
       try {
-        await axios.delete(`/api/elements/${id}`);
-        this.elements = this.elements.filter(element => element.id !== id);
+        await axios.post(`/api/elements/${id}/archive`);
+        await this.loadElements();
       } catch (error) {
-        console.error('Error deleting element:', error);
-        alert(this.t('failedDelete'));
+        console.error('Error archiving element:', error);
+        alert(this.t('failedArchive'));
+      }
+    },
+    
+    async restoreElement(id) {
+      try {
+        await axios.post(`/api/elements/${id}/restore`);
+        await this.loadElements();
+      } catch (error) {
+        console.error('Error restoring element:', error);
+        alert(this.t('failedRestore'));
+      }
+    },
+    
+    async removeElement(id) {
+      if (!confirm(this.t('confirmRemove'))) {
+        return;
+      }
+      
+      try {
+        await axios.delete(`/api/elements/${id}/force`);
+        await this.loadElements();
+      } catch (error) {
+        console.error('Error removing element:', error);
+        alert(this.t('failedRemove'));
       }
     },
     
