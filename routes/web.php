@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\TodoController;
 
 // API Routes
 Route::prefix('api')->group(function () {
-    Route::apiResource('todos', TodoController::class);
+    Route::apiResource('elements', TodoController::class);
 });
 
 // Serve Vue.js app on root and all other non-API routes

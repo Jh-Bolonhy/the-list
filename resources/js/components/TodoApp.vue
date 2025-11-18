@@ -174,7 +174,7 @@ export default {
     async loadTodos() {
       try {
         this.loading = true;
-        const response = await axios.get('/api/todos');
+        const response = await axios.get('/api/elements');
         this.todos = response.data;
       } catch (error) {
         console.error('Error loading todos:', error);
@@ -186,7 +186,7 @@ export default {
     
     async addTodo() {
       try {
-        const response = await axios.post('/api/todos', this.newTodo);
+        const response = await axios.post('/api/elements', this.newTodo);
         this.todos.unshift(response.data);
         this.newTodo = { title: '', description: '' };
       } catch (error) {
@@ -197,7 +197,7 @@ export default {
     
     async toggleTodo(todo) {
       try {
-        const response = await axios.put(`/api/todos/${todo.id}`, {
+        const response = await axios.put(`/api/elements/${todo.id}`, {
           completed: !todo.completed
         });
         const index = this.todos.findIndex(t => t.id === todo.id);
@@ -216,7 +216,7 @@ export default {
     
     async saveEdit() {
       try {
-        const response = await axios.put(`/api/todos/${this.editingTodo.id}`, {
+        const response = await axios.put(`/api/elements/${this.editingTodo.id}`, {
           title: this.editingTodo.title,
           description: this.editingTodo.description
         });
@@ -241,7 +241,7 @@ export default {
       }
       
       try {
-        await axios.delete(`/api/todos/${id}`);
+        await axios.delete(`/api/elements/${id}`);
         this.todos = this.todos.filter(todo => todo.id !== id);
       } catch (error) {
         console.error('Error deleting todo:', error);
