@@ -17,9 +17,10 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->boolean('completed')->default(false);
+            $table->boolean('archived')->default(false);
             $table->timestamps();
             
-            $table->foreign('parent_element_id')->references('id')->on('elements')->onDelete('cascade');
+            $table->foreign('parent_element_id')->references('id')->on('elements')->onDelete('restrict');
         });
     }
 

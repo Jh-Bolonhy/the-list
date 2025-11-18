@@ -12,9 +12,18 @@ class ElementController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $elements = Element::orderBy('created_at', 'desc')->get();
+        $query = Element::query();
+        
+        // If archived parameter is set, show archived elements, otherwise show only non-archived
+        if ($request->has('archived') && $request->boolean('archived')) {
+            $query->where('archived', true);
+        } else {
+            $query->where('archived', false);
+        }
+        
+        $elements = $query->orderBy('created_at', 'desc')->get();
         return response()->json($elements);
     }
 
@@ -59,13 +68,43 @@ class ElementController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Archive the specified resource and all its descendants.
      */
-    public function destroy(string $id): JsonResponse
+    public function archive(string $id): JsonResponse
     {
         $element = Element::findOrFail($id);
+        $element->archiveWithDescendants();
+        return response()->json(['message' => 'Element and all descendants archived successfully'], 200);
+    }
+
+    /**
+     * Restore an archived element and all its descendants.
+     */
+    public function restore(string $id): JsonResponse
+    {
+        $element = Element::findOrFail($id);
+        
+        if (!$element->archived) {
+            return response()->json(['message' => 'Element is not archived'], 400);
+        }
+        
+        $element->restoreWithDescendants();
+        return response()->json(['message' => 'Element and all descendants restored successfully'], 200);
+    }
+
+    /**
+     * Permanently delete an element (only if already archived).
+     */
+    public function forceDelete(string $id): JsonResponse
+    {
+        $element = Element::findOrFail($id);
+        
+        if (!$element->archived) {
+            return response()->json(['message' => 'Element must be archived before permanent deletion'], 400);
+        }
+        
         $element->delete();
-        return response()->json(null, 204);
+        return response()->json(['message' => 'Element permanently deleted'], 200);
     }
 }
 

@@ -12,11 +12,13 @@ class Element extends Model
         'parent_element_id',
         'title',
         'description',
-        'completed'
+        'completed',
+        'archived'
     ];
 
     protected $casts = [
-        'completed' => 'boolean'
+        'completed' => 'boolean',
+        'archived' => 'boolean'
     ];
 
     /**
@@ -33,6 +35,51 @@ class Element extends Model
     public function children()
     {
         return $this->hasMany(Element::class, 'parent_element_id');
+    }
+
+    /**
+     * Get all descendants (children, grandchildren, etc.)
+     */
+    public function descendants()
+    {
+        return $this->children()->with('descendants');
+    }
+
+    /**
+     * Archive this element and all its descendants
+     * Preserves the parent-child structure (parent_element_id remains unchanged)
+     */
+    public function archiveWithDescendants()
+    {
+        // Get all children
+        $children = Element::where('parent_element_id', $this->id)->get();
+        
+        // Archive all descendants first (recursive)
+        foreach ($children as $child) {
+            if (!$child->archived) {
+                $child->archiveWithDescendants();
+            }
+        }
+        
+        // Archive this element
+        $this->update(['archived' => true]);
+    }
+
+    /**
+     * Restore this element and all its descendants
+     */
+    public function restoreWithDescendants()
+    {
+        // Restore this element first
+        $this->update(['archived' => false]);
+        
+        // Get all descendants and restore them recursively
+        $descendants = Element::where('parent_element_id', $this->id)->get();
+        foreach ($descendants as $child) {
+            if ($child->archived) {
+                $child->restoreWithDescendants();
+            }
+        }
     }
 }
 
