@@ -11,12 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('todos', function (Blueprint $table) {
+        Schema::create('elements', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('parent_element_id')->nullable();
             $table->string('title');
             $table->text('description')->nullable();
             $table->boolean('completed')->default(false);
             $table->timestamps();
+            
+            $table->foreign('parent_element_id')->references('id')->on('elements')->onDelete('cascade');
         });
     }
 
@@ -25,6 +28,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('todos');
+        Schema::dropIfExists('elements');
     }
 };
+
