@@ -48,7 +48,12 @@
             <div
               v-for="element in elements"
               :key="element.id"
-              class="flex items-center p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              :class="[
+                'flex items-center p-4 rounded-lg transition-colors',
+                element.archived 
+                  ? 'bg-gray-200 hover:bg-gray-300' 
+                  : 'bg-gray-50 hover:bg-gray-100'
+              ]"
             >
               <!-- Checkbox -->
               <input
@@ -122,7 +127,7 @@
                   </button>
                   <button
                     @click="archiveElement(element.id)"
-                    class="px-3 py-1 bg-orange-400 text-white rounded-md hover:bg-orange-500 text-sm"
+                    class="px-3 py-1 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
                   >
                     {{ t('archive') }}
                   </button>
@@ -131,13 +136,13 @@
                 <template v-else>
                   <button
                     @click="restoreElement(element.id)"
-                    class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+                    class="px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm"
                   >
                     {{ t('restore') }}
                   </button>
                   <button
                     @click="removeElement(element.id)"
-                    class="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm"
+                    class="px-3 py-1 bg-pink-600 text-white rounded-md hover:bg-pink-700 text-sm"
                   >
                     {{ t('remove') }}
                   </button>
