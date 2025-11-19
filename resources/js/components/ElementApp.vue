@@ -9,9 +9,9 @@
         <div class="space-y-4">
           <div class="flex items-center mb-4 relative">
             <h2 class="text-xl font-semibold">{{ t('yourElements') }}</h2>
-            <!-- Round Add Button (only show for active elements) - centered -->
+            <!-- Round Add Button (only show for active or both view) - centered -->
             <button
-              v-if="!showArchived"
+              v-if="viewMode === 'active' || viewMode === 'both'"
               @click="showAddModal = true"
               class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all hover:scale-110 flex items-center justify-center z-10"
               title="Add New Element"
@@ -20,17 +20,19 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
               </svg>
             </button>
-            <button
-              @click="toggleArchivedView"
-              :class="[
-                'px-4 py-2 text-white rounded-md text-sm transition-colors ml-auto',
-                showArchived 
-                  ? 'bg-green-500 hover:bg-green-600' 
-                  : 'bg-gray-500 hover:bg-gray-600'
-              ]"
-            >
-              {{ showArchived ? t('showActive') : t('showArchived') }}
-            </button>
+            <div class="ml-auto flex items-center gap-2">
+              <label for="viewMode" class="text-sm font-medium text-gray-700">{{ t('show') }}:</label>
+              <select
+                id="viewMode"
+                v-model="viewMode"
+                @change="loadElements"
+                class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+              >
+                <option value="active">{{ t('active') }}</option>
+                <option value="archived">{{ t('archived') }}</option>
+                <option value="both">{{ t('both') }}</option>
+              </select>
+            </div>
           </div>
           
           <div v-if="loading" class="text-center py-8">
@@ -111,7 +113,7 @@
               <!-- Actions -->
               <div v-if="editingElement?.id !== element.id" class="flex space-x-2 ml-4">
                 <!-- Actions for active (non-archived) elements -->
-                <template v-if="!showArchived">
+                <template v-if="!element.archived">
                   <button
                     @click="startEdit(element)"
                     class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
@@ -225,7 +227,7 @@ export default {
     return {
       elements: [],
       loading: true,
-      showArchived: false,
+      viewMode: 'active',
       showAddModal: false,
       newElement: {
         title: '',
@@ -245,9 +247,15 @@ export default {
     async loadElements() {
       try {
         this.loading = true;
-        const url = this.showArchived 
-          ? '/api/elements?archived=true' 
-          : '/api/elements';
+        let url = '/api/elements';
+        
+        if (this.viewMode === 'active') {
+          url = '/api/elements?archived=false';
+        } else if (this.viewMode === 'archived') {
+          url = '/api/elements?archived=true';
+        }
+        // For 'both', don't add archived parameter - API will return all
+        
         const response = await axios.get(url);
         this.elements = response.data;
       } catch (error) {
@@ -256,11 +264,6 @@ export default {
       } finally {
         this.loading = false;
       }
-    },
-    
-    toggleArchivedView() {
-      this.showArchived = !this.showArchived;
-      this.loadElements();
     },
     
     closeAddModal() {

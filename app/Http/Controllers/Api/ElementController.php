@@ -16,12 +16,12 @@ class ElementController extends Controller
     {
         $query = Element::query();
         
-        // If archived parameter is set, show archived elements, otherwise show only non-archived
-        if ($request->has('archived') && $request->boolean('archived')) {
-            $query->where('archived', true);
-        } else {
-            $query->where('archived', false);
+        // Filter by archived status if provided
+        if ($request->has('archived')) {
+            $archived = $request->boolean('archived');
+            $query->where('archived', $archived);
         }
+        // If no archived parameter, return all elements (for 'both' view)
         
         $elements = $query->orderBy('created_at', 'desc')->get();
         return response()->json($elements);
