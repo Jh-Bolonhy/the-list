@@ -13,10 +13,12 @@
             <button
               v-if="!showArchived"
               @click="showAddModal = true"
-              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all hover:scale-110 flex items-center justify-center text-2xl font-bold z-10 leading-none"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all hover:scale-110 flex items-center justify-center z-10"
               title="Add New Element"
             >
-              +
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
+              </svg>
             </button>
             <button
               @click="toggleArchivedView"
@@ -156,11 +158,12 @@
           <h2 class="text-xl font-semibold">{{ t('addNewElement') }}</h2>
           <button
             @click="closeAddModal"
-            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors text-2xl font-bold leading-none p-0 m-0"
+            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors p-0 m-0"
             aria-label="Close"
-            style="line-height: 1;"
           >
-            ×
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
           </button>
         </div>
         <form @submit.prevent="handleAddElement" class="space-y-4">
