@@ -4,49 +4,24 @@
       <div class="bg-white rounded-lg shadow-lg p-6">
         <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">{{ t('elementList') }}</h1>
         <LanguageSwitcher :lang="lang" :t="t" @update:lang="setLang" />
-        
-        <!-- Add Element Form (only show for active elements) -->
-        <div v-if="!showArchived" class="mb-8 p-4 bg-gray-50 rounded-lg">
-          <h2 class="text-xl font-semibold mb-4">{{ t('addNewElement') }}</h2>
-          <form @submit.prevent="addElement" class="space-y-4">
-            <div>
-              <label for="title" class="block text-sm font-medium text-gray-700 mb-1">{{ t('title') }}</label>
-              <input
-                v-model="newElement.title"
-                type="text"
-                id="title"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('title')"
-                required
-              />
-            </div>
-            <div>
-              <label for="description" class="block text-sm font-medium text-gray-700 mb-1">{{ t('description') }}</label>
-              <textarea
-                v-model="newElement.description"
-                id="description"
-                rows="3"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('description') + ' (' + t('optional') + ')'"
-              ></textarea>
-            </div>
-            <button
-              type="submit"
-              class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-            >
-              {{ t('add') }}
-            </button>
-          </form>
-        </div>
 
         <!-- Element List -->
         <div class="space-y-4">
-          <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center mb-4 relative">
             <h2 class="text-xl font-semibold">{{ t('yourElements') }}</h2>
+            <!-- Round Add Button (only show for active elements) - centered -->
+            <button
+              v-if="!showArchived"
+              @click="showAddModal = true"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all hover:scale-110 flex items-center justify-center text-2xl font-bold z-10 leading-none"
+              title="Add New Element"
+            >
+              +
+            </button>
             <button
               @click="toggleArchivedView"
               :class="[
-                'px-4 py-2 text-white rounded-md text-sm transition-colors',
+                'px-4 py-2 text-white rounded-md text-sm transition-colors ml-auto',
                 showArchived 
                   ? 'bg-green-500 hover:bg-green-600' 
                   : 'bg-gray-500 hover:bg-gray-600'
@@ -169,6 +144,66 @@
         </div>
       </div>
     </div>
+
+    <!-- Add Element Modal -->
+    <div
+      v-if="showAddModal"
+      class="fixed inset-0 bg-gray-900/70 flex items-center justify-center z-50"
+      @click.self="closeAddModal"
+    >
+      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" @click.stop>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-semibold">{{ t('addNewElement') }}</h2>
+          <button
+            @click="closeAddModal"
+            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors text-2xl font-bold leading-none p-0 m-0"
+            aria-label="Close"
+            style="line-height: 1;"
+          >
+            ×
+          </button>
+        </div>
+        <form @submit.prevent="handleAddElement" class="space-y-4">
+          <div>
+            <label for="modal-title" class="block text-sm font-medium text-gray-700 mb-1">{{ t('title') }}</label>
+            <input
+              v-model="newElement.title"
+              type="text"
+              id="modal-title"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              :placeholder="t('title')"
+              required
+              ref="titleInput"
+            />
+          </div>
+          <div>
+            <label for="modal-description" class="block text-sm font-medium text-gray-700 mb-1">{{ t('description') }}</label>
+            <textarea
+              v-model="newElement.description"
+              id="modal-description"
+              rows="3"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              :placeholder="t('description') + ' (' + t('optional') + ')'"
+            ></textarea>
+          </div>
+          <div class="flex space-x-3">
+            <button
+              type="submit"
+              class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+            >
+              {{ t('add') }}
+            </button>
+            <button
+              type="button"
+              @click="closeAddModal"
+              class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+            >
+              {{ t('cancel') }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -188,6 +223,7 @@ export default {
       elements: [],
       loading: true,
       showArchived: false,
+      showAddModal: false,
       newElement: {
         title: '',
         description: ''
@@ -224,11 +260,17 @@ export default {
       this.loadElements();
     },
     
-    async addElement() {
+    closeAddModal() {
+      this.showAddModal = false;
+      this.newElement = { title: '', description: '' };
+    },
+    
+    async handleAddElement() {
       try {
         const response = await axios.post('/api/elements', this.newElement);
         this.elements.unshift(response.data);
-        this.newElement = { title: '', description: '' };
+        this.closeAddModal();
+        await this.loadElements();
       } catch (error) {
         console.error('Error adding element:', error);
         alert(this.t('failedAdd'));
@@ -325,6 +367,18 @@ export default {
   },
   async mounted() {
     await this.loadElements();
+  },
+  watch: {
+    showAddModal(newVal) {
+      if (newVal) {
+        this.$nextTick(() => {
+          const input = this.$refs.titleInput;
+          if (input) {
+            input.focus();
+          }
+        });
+      }
+    }
   },
 };
 </script>
