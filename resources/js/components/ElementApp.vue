@@ -3,7 +3,24 @@
     <div class="max-w-4xl mx-auto px-4">
       <div class="bg-white rounded-lg shadow-lg p-6">
         <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">{{ t('elementList') }}</h1>
-        <LanguageSwitcher :lang="lang" :t="t" @update:lang="setLang" />
+        <div class="mb-4 flex items-center justify-between">
+          <LanguageSwitcher :lang="lang" :t="t" @update:lang="setLang" />
+          <div class="flex items-center">
+            <!-- Active elements box -->
+            <div class="px-3 py-1.5 bg-gray-50 rounded-lg text-sm text-gray-800 flex items-center gap-3 border border-gray-300">
+              <span>{{ activeCount }}</span>
+              <span class="text-gray-500">
+                (<span class="line-through">{{ activeCompletedCount }}</span>)
+              </span>
+            </div>
+            <!-- Separator -->
+            <span class="text-gray-600 font-bold text-lg mx-2">/</span>
+            <!-- Archived elements box -->
+            <div class="px-3 py-1.5 bg-gray-200 rounded-lg text-sm text-gray-800 border border-gray-300">
+              {{ archivedCount }}
+            </div>
+          </div>
+        </div>
 
         <!-- Element List -->
         <div class="space-y-4">
@@ -49,7 +66,7 @@
               v-for="element in elements"
               :key="element.id"
               :class="[
-                'flex items-center p-4 rounded-lg transition-colors',
+                'flex items-center p-4 rounded-lg transition-colors border border-gray-300',
                 element.archived 
                   ? 'bg-gray-200 hover:bg-gray-300' 
                   : 'bg-gray-50 hover:bg-gray-100'
@@ -240,7 +257,20 @@ export default {
       },
       editingElement: null,
       lang: 'en',
+      allElements: [], // Store all elements for statistics
     };
+  },
+  computed: {
+    activeCount() {
+      return this.allElements.filter(e => !e.archived).length;
+    },
+    activeCompletedCount() {
+      const active = this.allElements.filter(e => !e.archived);
+      return active.filter(e => e.completed).length;
+    },
+    archivedCount() {
+      return this.allElements.filter(e => e.archived).length;
+    }
   },
   methods: {
     t(key) {
@@ -263,11 +293,23 @@ export default {
         
         const response = await axios.get(url);
         this.elements = response.data;
+        
+        // Load all elements for statistics
+        await this.loadAllElementsForStats();
       } catch (error) {
         console.error('Error loading elements:', error);
         alert(this.t('failedLoad'));
       } finally {
         this.loading = false;
+      }
+    },
+    
+    async loadAllElementsForStats() {
+      try {
+        const response = await axios.get('/api/elements');
+        this.allElements = response.data;
+      } catch (error) {
+        console.error('Error loading all elements for stats:', error);
       }
     },
     
@@ -281,6 +323,7 @@ export default {
         const response = await axios.post('/api/elements', this.newElement);
         this.elements.unshift(response.data);
         this.closeAddModal();
+        await this.loadAllElementsForStats();
         await this.loadElements();
       } catch (error) {
         console.error('Error adding element:', error);
@@ -296,6 +339,11 @@ export default {
         const index = this.elements.findIndex(e => e.id === element.id);
         if (index !== -1) {
           this.elements[index] = response.data;
+        }
+        // Update stats
+        const allIndex = this.allElements.findIndex(e => e.id === element.id);
+        if (allIndex !== -1) {
+          this.allElements[allIndex] = response.data;
         }
       } catch (error) {
         console.error('Error toggling element:', error);
@@ -317,6 +365,11 @@ export default {
         if (index !== -1) {
           this.elements[index] = response.data;
         }
+        // Update stats
+        const allIndex = this.allElements.findIndex(e => e.id === this.editingElement.id);
+        if (allIndex !== -1) {
+          this.allElements[allIndex] = response.data;
+        }
         this.editingElement = null;
       } catch (error) {
         console.error('Error updating element:', error);
@@ -335,6 +388,7 @@ export default {
       
       try {
         await axios.post(`/api/elements/${id}/archive`);
+        await this.loadAllElementsForStats();
         await this.loadElements();
       } catch (error) {
         console.error('Error archiving element:', error);
@@ -345,6 +399,7 @@ export default {
     async restoreElement(id) {
       try {
         await axios.post(`/api/elements/${id}/restore`);
+        await this.loadAllElementsForStats();
         await this.loadElements();
       } catch (error) {
         console.error('Error restoring element:', error);
@@ -359,6 +414,7 @@ export default {
       
       try {
         await axios.delete(`/api/elements/${id}/force`);
+        await this.loadAllElementsForStats();
         await this.loadElements();
       } catch (error) {
         console.error('Error removing element:', error);
@@ -377,6 +433,7 @@ export default {
     }
   },
   async mounted() {
+    await this.loadAllElementsForStats();
     await this.loadElements();
   },
   watch: {
