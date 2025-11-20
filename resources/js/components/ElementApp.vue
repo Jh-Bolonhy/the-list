@@ -30,7 +30,7 @@
             <button
               v-if="viewMode === 'active' || viewMode === 'both'"
               @click="showAddModal = true"
-              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all hover:scale-110 flex items-center justify-center z-10"
+              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all duration-300 ease-in-out hover:scale-110 flex items-center justify-center z-10"
               title="Add New Element"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -61,19 +61,22 @@
             <p class="text-gray-500">{{ t('noElements') }}</p>
           </div>
 
-          <div v-else class="space-y-3">
-            <!-- Drop zone at the top -->
+          <transition-group v-else name="list" tag="div" class="space-y-3">
+            <!-- Drop zone at the top - always present but minimal height -->
             <div
-              v-if="draggingIndex !== null"
+              key="drop-top"
               @dragover.prevent="handleDragOver($event, -1)"
-              @drop="handleDrop($event, -1)"
-              @dragenter.prevent="dragOverIndex = -1"
-              class="h-8 mb-2 cursor-move transition-colors"
-              :class="dragOverIndex === -1 ? 'bg-blue-100' : 'bg-transparent'"
+              @drop.prevent="handleDrop($event, -1)"
+              @dragenter.prevent="handleDragOver($event, -1)"
+              class="cursor-move transition-all duration-300 ease-in-out"
+              :class="[
+                draggingIndex !== null ? 'min-h-[1px]' : 'h-0',
+                dragOverIndex === -1 && draggingIndex !== null ? 'mb-2' : ''
+              ]"
             >
               <div
-                v-if="dragOverIndex === -1"
-                class="h-1 bg-blue-500 rounded-full"
+                v-if="dragOverIndex === -1 && draggingIndex !== null"
+                class="h-1 bg-blue-500 rounded-full transition-all duration-300 ease-in-out"
               ></div>
             </div>
             
@@ -81,7 +84,7 @@
               <!-- Drop zone indicator above element -->
               <div
                 v-if="dragOverIndex === index && draggingIndex !== null && draggingIndex < index"
-                class="h-1 bg-blue-500 rounded-full mb-2 -mt-2"
+                class="h-1 bg-blue-500 rounded-full mb-2 -mt-2 transition-all duration-300 ease-in-out"
               ></div>
               
               <div
@@ -91,8 +94,9 @@
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, index)"
                 @dragend="handleDragEnd"
+                :style="getElementStyle(index)"
                 :class="[
-                  'flex items-center p-4 rounded-lg transition-colors border border-gray-300 cursor-move',
+                  'flex items-center p-4 rounded-lg transition-all duration-300 ease-in-out border border-gray-300 cursor-move',
                   element.archived 
                     ? 'bg-gray-200 hover:bg-gray-300' 
                     : 'bg-gray-50 hover:bg-gray-100',
@@ -124,13 +128,13 @@
                   <div class="flex space-x-2">
                     <button
                       @click="saveEdit"
-                      class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm"
+                      class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm transition-all duration-300 ease-in-out"
                     >
                       {{ t('save') }}
                     </button>
                     <button
                       @click="cancelEdit"
-                      class="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm"
+                      class="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm transition-all duration-300 ease-in-out"
                     >
                       {{ t('cancel') }}
                     </button>
@@ -166,13 +170,13 @@
                 <template v-if="!element.archived">
                   <button
                     @click="startEdit(element)"
-                    class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
+                    class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm transition-all duration-300 ease-in-out"
                   >
                     {{ t('edit') }}
                   </button>
                   <button
                     @click="archiveElement(element.id)"
-                    class="px-3 py-1 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium"
+                    class="px-3 py-1 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium transition-all duration-300 ease-in-out"
                   >
                     {{ t('archive') }}
                   </button>
@@ -181,13 +185,13 @@
                 <template v-else>
                   <button
                     @click="restoreElement(element.id)"
-                    class="px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm"
+                    class="px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm transition-all duration-300 ease-in-out"
                   >
                     {{ t('restore') }}
                   </button>
                   <button
                     @click="removeElement(element.id)"
-                    class="px-3 py-1 bg-pink-600 text-white rounded-md hover:bg-pink-700 text-sm"
+                    class="px-3 py-1 bg-pink-600 text-white rounded-md hover:bg-pink-700 text-sm transition-all duration-300 ease-in-out"
                   >
                     {{ t('remove') }}
                   </button>
@@ -202,37 +206,42 @@
             ></div>
             </template>
             
-            <!-- Drop zone at the bottom -->
+            <!-- Drop zone at the bottom - always present but minimal height -->
             <div
-              v-if="draggingIndex !== null"
+              key="drop-bottom"
               @dragover.prevent="handleDragOver($event, elements.length)"
-              @drop="handleDrop($event, elements.length)"
-              @dragenter.prevent="dragOverIndex = elements.length"
-              class="h-8 mt-2 cursor-move transition-colors"
-              :class="dragOverIndex === elements.length ? 'bg-blue-100' : 'bg-transparent'"
+              @drop.prevent="handleDrop($event, elements.length)"
+              @dragenter.prevent="handleDragOver($event, elements.length)"
+              class="cursor-move transition-all duration-300 ease-in-out"
+              :class="[
+                draggingIndex !== null ? 'min-h-[1px]' : 'h-0',
+                dragOverIndex === elements.length && draggingIndex !== null ? 'mt-2' : ''
+              ]"
             >
               <div
-                v-if="dragOverIndex === elements.length"
-                class="h-1 bg-blue-500 rounded-full"
+                v-if="dragOverIndex === elements.length && draggingIndex !== null"
+                class="h-1 bg-blue-500 rounded-full transition-all duration-300 ease-in-out"
               ></div>
             </div>
-          </div>
+          </transition-group>
         </div>
       </div>
     </div>
 
     <!-- Add Element Modal -->
-    <div
-      v-if="showAddModal"
-      class="fixed inset-0 bg-gray-900/70 flex items-center justify-center z-50"
-      @click.self="closeAddModal"
-    >
-      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4" @click.stop>
+    <transition name="modal-fade">
+      <div
+        v-if="showAddModal"
+        class="fixed inset-0 bg-gray-900/70 flex items-center justify-center z-50 transition-opacity duration-300 ease-in-out"
+        @click.self="closeAddModal"
+      >
+        <transition name="modal-scale">
+          <div v-if="showAddModal" class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 transition-all duration-300 ease-in-out" @click.stop>
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-semibold">{{ t('addNewElement') }}</h2>
           <button
             @click="closeAddModal"
-            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors p-0 m-0"
+            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out p-0 m-0"
             aria-label="Close"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -266,21 +275,23 @@
           <div class="flex space-x-3">
             <button
               type="submit"
-              class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
             >
               {{ t('add') }}
             </button>
             <button
               type="button"
               @click="closeAddModal"
-              class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+              class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-300 ease-in-out"
             >
               {{ t('cancel') }}
             </button>
           </div>
         </form>
+          </div>
+        </transition>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -484,6 +495,49 @@ export default {
       });
     },
     
+    getElementStyle(index) {
+      // Only apply styles when actually dragging over other elements
+      if (this.draggingIndex === null || this.dragOverIndex === null) {
+        return {};
+      }
+      
+      // Elements above the dragging element don't move
+      if (index < this.draggingIndex) {
+        return {};
+      }
+      
+      // The dragging element itself is handled by opacity
+      if (index === this.draggingIndex) {
+        return {};
+      }
+      
+      // Elements below the dragging element move up when dragging down
+      if (this.dragOverIndex > this.draggingIndex) {
+        // If we're dragging down past this element, it should move up
+        if (index > this.draggingIndex && index <= this.dragOverIndex) {
+          // Calculate approximate element height (including margin)
+          // Each element has p-4 (16px top + 16px bottom) + border + space-y-3 (12px margin)
+          const elementHeight = 80; // Approximate height including padding and margin
+          return {
+            transform: `translateY(-${elementHeight}px)`
+          };
+        }
+      }
+      
+      // Elements move down when dragging up
+      if (this.dragOverIndex < this.draggingIndex) {
+        // If we're dragging up past this element, it should move down
+        if (index >= this.dragOverIndex && index < this.draggingIndex) {
+          const elementHeight = 80;
+          return {
+            transform: `translateY(${elementHeight}px)`
+          };
+        }
+      }
+      
+      return {};
+    },
+    
     handleDragStart(event, index) {
       this.draggingIndex = index;
       event.dataTransfer.effectAllowed = 'move';
@@ -591,4 +645,55 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+/* Modal fade transition */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+/* Modal scale transition */
+.modal-scale-enter-active,
+.modal-scale-leave-active {
+  transition: all 0.3s ease-in-out;
+}
+
+.modal-scale-enter-from {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.modal-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* List transition for smooth element reordering */
+.list-move,
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.3s ease-in-out;
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.list-leave-active {
+  position: absolute;
+  width: 100%;
+}
+</style>
 
