@@ -70,23 +70,12 @@
               @dragenter.prevent="handleDragOver($event, -1)"
               class="cursor-move transition-all duration-300 ease-in-out"
               :class="[
-                draggingIndex !== null ? 'min-h-[1px]' : 'h-0',
-                dragOverIndex === -1 && draggingIndex !== null ? 'mb-2' : ''
+                draggingIndex !== null ? 'min-h-[1px]' : 'h-0'
               ]"
             >
-              <div
-                v-if="dragOverIndex === -1 && draggingIndex !== null"
-                class="h-1 bg-blue-500 rounded-full transition-all duration-300 ease-in-out"
-              ></div>
             </div>
             
             <template v-for="(element, index) in elements" :key="element.id">
-              <!-- Drop zone indicator above element -->
-              <div
-                v-if="dragOverIndex === index && draggingIndex !== null && draggingIndex < index"
-                class="h-1 bg-blue-500 rounded-full mb-2 -mt-2 transition-all duration-300 ease-in-out"
-              ></div>
-              
               <div
                 :draggable="true"
                 @dragstart="handleDragStart($event, index)"
@@ -101,7 +90,8 @@
                     ? 'bg-gray-200 hover:bg-gray-300' 
                     : 'bg-gray-50 hover:bg-gray-100',
                   draggingIndex === index ? 'opacity-50' : '',
-                  dragOverIndex === index && draggingIndex !== null && draggingIndex > index ? 'border-blue-500 border-2' : ''
+                  dragOverIndex === index && draggingIndex !== null && draggingIndex !== index ? 'mt-1' : '',
+                  dragOverIndex === index + 1 && draggingIndex !== null && draggingIndex !== index ? 'mb-1' : ''
                 ]"
               >
               <!-- Checkbox -->
@@ -199,11 +189,6 @@
               </div>
             </div>
             
-            <!-- Drop zone indicator below element when dragging down -->
-            <div
-              v-if="dragOverIndex === index && draggingIndex !== null && draggingIndex > index"
-              class="h-1 bg-blue-500 rounded-full mt-2"
-            ></div>
             </template>
             
             <!-- Drop zone at the bottom - always present but minimal height -->
@@ -214,14 +199,9 @@
               @dragenter.prevent="handleDragOver($event, elements.length)"
               class="cursor-move transition-all duration-300 ease-in-out"
               :class="[
-                draggingIndex !== null ? 'min-h-[1px]' : 'h-0',
-                dragOverIndex === elements.length && draggingIndex !== null ? 'mt-2' : ''
+                draggingIndex !== null ? 'min-h-[1px]' : 'h-0'
               ]"
             >
-              <div
-                v-if="dragOverIndex === elements.length && draggingIndex !== null"
-                class="h-1 bg-blue-500 rounded-full transition-all duration-300 ease-in-out"
-              ></div>
             </div>
           </transition-group>
         </div>
@@ -496,13 +476,8 @@ export default {
     },
     
     getElementStyle(index) {
-      // Only apply styles when actually dragging over other elements
-      if (this.draggingIndex === null || this.dragOverIndex === null) {
-        return {};
-      }
-      
-      // Elements above the dragging element don't move
-      if (index < this.draggingIndex) {
+      // Only apply styles when actually dragging
+      if (this.draggingIndex === null) {
         return {};
       }
       
@@ -511,29 +486,23 @@ export default {
         return {};
       }
       
-      // Elements below the dragging element move up when dragging down
-      if (this.dragOverIndex > this.draggingIndex) {
-        // If we're dragging down past this element, it should move up
-        if (index > this.draggingIndex && index <= this.dragOverIndex) {
-          // Calculate approximate element height (including margin)
-          // Each element has p-4 (16px top + 16px bottom) + border + space-y-3 (12px margin)
-          const elementHeight = 80; // Approximate height including padding and margin
-          return {
-            transform: `translateY(-${elementHeight}px)`
-          };
-        }
+      const shiftAmount = 4; // 4px shift
+      
+      // Make the two neighboring elements converge to fill the gap left by the dragged element
+      // Element immediately before the dragged element moves down
+      if (index === this.draggingIndex - 1) {
+        return {
+          transform: `translateY(${shiftAmount}px)`
+        };
       }
       
-      // Elements move down when dragging up
-      if (this.dragOverIndex < this.draggingIndex) {
-        // If we're dragging up past this element, it should move down
-        if (index >= this.dragOverIndex && index < this.draggingIndex) {
-          const elementHeight = 80;
-          return {
-            transform: `translateY(${elementHeight}px)`
-          };
-        }
+      // Element immediately after the dragged element moves up
+      if (index === this.draggingIndex + 1) {
+        return {
+          transform: `translateY(-${shiftAmount}px)`
+        };
       }
+      
       
       return {};
     },
@@ -550,19 +519,47 @@ export default {
       event.stopPropagation();
       // Allow dropping at top (-1) or bottom (elements.length) or between elements
       if (this.draggingIndex !== null) {
-        // If hovering over a regular element, clear edge positions
-        if (index >= 0 && index < this.elements.length) {
-          // Special handling for edge positions - clear them when over regular elements
-          if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
+        // If hovering over a regular element, check which third of the element the cursor is in
+        if (index >= 0 && index < this.elements.length && this.draggingIndex !== index) {
+          // Get the element's bounding rectangle
+          const elementRect = event.currentTarget.getBoundingClientRect();
+          const y = event.clientY - elementRect.top;
+          const elementHeight = elementRect.height;
+          const thirdHeight = elementHeight / 3;
+          
+          // Check if cursor is in upper or lower third
+          const isUpperThird = y < thirdHeight;
+          const isLowerThird = y > (elementHeight - thirdHeight);
+          
+          // Only set dragOverIndex if in upper or lower third
+          if (isUpperThird) {
+            // Dropping in upper third - insert before this element
+            this.dragOverIndex = index;
+            // Clear edge positions
+            if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
+              this.dragOverIndex = null;
+            }
+          } else if (isLowerThird) {
+            // Dropping in lower third - insert after this element
+            this.dragOverIndex = index + 1;
+            // Clear edge positions
+            if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
+              this.dragOverIndex = null;
+            }
+          } else {
+            // Middle third - don't allow dropping, clear dragOverIndex
             this.dragOverIndex = null;
+            // Clear edge positions
+            if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
+              this.dragOverIndex = null;
+            }
           }
-        }
-        
-        // Set the drag over index
-        if (index === -1 || index === this.elements.length) {
+        } else if (index === -1 || index === this.elements.length) {
+          // Edge positions (top or bottom)
           this.dragOverIndex = index;
-        } else if (this.draggingIndex !== index) {
-          this.dragOverIndex = index;
+        } else if (this.draggingIndex === index) {
+          // Hovering over the same element being dragged
+          this.dragOverIndex = null;
         }
       }
     },
@@ -584,8 +581,18 @@ export default {
         return;
       }
       
-      // Don't do anything if dropping on the same position
-      if (dropIndex === this.draggingIndex) {
+      // Don't do anything if dragOverIndex is null (middle third or invalid drop)
+      if (this.dragOverIndex === null) {
+        return;
+      }
+      
+      // Use dragOverIndex instead of dropIndex for accurate positioning
+      const actualDropIndex = this.dragOverIndex;
+      
+      // If dropping back at the original position (between the same neighbors), don't move
+      // Original position is between draggingIndex and draggingIndex + 1
+      if (actualDropIndex === this.draggingIndex || actualDropIndex === this.draggingIndex + 1) {
+        // Element returns to its original position - no change needed
         this.dragOverIndex = null;
         return;
       }
@@ -596,21 +603,21 @@ export default {
       // Remove the dragged element from its original position
       newElements.splice(this.draggingIndex, 1);
       
-      // Calculate the correct insertion index
+      // Calculate the correct insertion index using actualDropIndex
       let insertIndex;
-      if (dropIndex === -1) {
+      if (actualDropIndex === -1) {
         // Moving to the top
         insertIndex = 0;
-      } else if (dropIndex === this.elements.length) {
+      } else if (actualDropIndex === this.elements.length) {
         // Moving to the bottom (after removal, array length is elements.length - 1)
         insertIndex = newElements.length;
       } else {
         // Moving between elements
-        // If moving down (draggingIndex < dropIndex), the dropIndex shifts by -1 after removal
-        // If moving up (draggingIndex > dropIndex), the dropIndex stays the same
-        insertIndex = dropIndex;
-        if (this.draggingIndex < dropIndex) {
-          insertIndex = dropIndex - 1;
+        // If moving down (draggingIndex < actualDropIndex), the actualDropIndex shifts by -1 after removal
+        // If moving up (draggingIndex > actualDropIndex), the actualDropIndex stays the same
+        insertIndex = actualDropIndex;
+        if (this.draggingIndex < actualDropIndex) {
+          insertIndex = actualDropIndex - 1;
         }
       }
       
