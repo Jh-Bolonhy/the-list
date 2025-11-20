@@ -89,7 +89,11 @@
                   element.archived 
                     ? 'bg-gray-200 hover:bg-gray-300' 
                     : 'bg-gray-50 hover:bg-gray-100',
-                  draggingIndex === index ? 'opacity-50' : '',
+                  draggingIndex === index 
+                    ? 'shadow-2xl z-50' 
+                    : draggingIndex !== null 
+                      ? 'opacity-90' 
+                      : '',
                   dragOverIndex === index && draggingIndex !== null && draggingIndex !== index ? 'mt-1' : '',
                   dragOverIndex === index + 1 && draggingIndex !== null && draggingIndex !== index ? 'mb-1' : ''
                 ]"
@@ -509,9 +513,9 @@ export default {
     
     handleDragStart(event, index) {
       this.draggingIndex = index;
+      this.dragOverIndex = null;
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/html', event.target);
-      event.target.style.opacity = '0.5';
     },
     
     handleDragOver(event, index) {
@@ -535,24 +539,20 @@ export default {
           if (isUpperThird) {
             // Dropping in upper third - insert before this element
             this.dragOverIndex = index;
-            // Clear edge positions
-            if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
+            // Clear top position if accidentally set
+            if (this.dragOverIndex === -1) {
               this.dragOverIndex = null;
             }
           } else if (isLowerThird) {
             // Dropping in lower third - insert after this element
             this.dragOverIndex = index + 1;
-            // Clear edge positions
-            if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
+            // Allow elements.length for bottom position, only clear -1
+            if (this.dragOverIndex === -1) {
               this.dragOverIndex = null;
             }
           } else {
             // Middle third - don't allow dropping, clear dragOverIndex
             this.dragOverIndex = null;
-            // Clear edge positions
-            if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
-              this.dragOverIndex = null;
-            }
           }
         } else if (index === -1 || index === this.elements.length) {
           // Edge positions (top or bottom)
@@ -591,7 +591,16 @@ export default {
       
       // If dropping back at the original position (between the same neighbors), don't move
       // Original position is between draggingIndex and draggingIndex + 1
-      if (actualDropIndex === this.draggingIndex || actualDropIndex === this.draggingIndex + 1) {
+      // Exception: if moving to the very bottom (elements.length), allow it even if it's draggingIndex + 1
+      // because the element might not be the last one
+      if (actualDropIndex === this.draggingIndex) {
+        // Dropping at the same position
+        this.dragOverIndex = null;
+        return;
+      }
+      
+      // If dropping at draggingIndex + 1 and it's not the bottom position, it's the original position
+      if (actualDropIndex === this.draggingIndex + 1 && actualDropIndex !== this.elements.length) {
         // Element returns to its original position - no change needed
         this.dragOverIndex = null;
         return;
@@ -629,7 +638,6 @@ export default {
     },
     
     handleDragEnd(event) {
-      event.target.style.opacity = '';
       this.draggingIndex = null;
       this.dragOverIndex = null;
     }
