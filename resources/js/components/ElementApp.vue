@@ -62,16 +62,44 @@
           </div>
 
           <div v-else class="space-y-3">
+            <!-- Drop zone at the top -->
             <div
-              v-for="element in elements"
-              :key="element.id"
-              :class="[
-                'flex items-center p-4 rounded-lg transition-colors border border-gray-300',
-                element.archived 
-                  ? 'bg-gray-200 hover:bg-gray-300' 
-                  : 'bg-gray-50 hover:bg-gray-100'
-              ]"
+              v-if="draggingIndex !== null"
+              @dragover.prevent="handleDragOver($event, -1)"
+              @drop="handleDrop($event, -1)"
+              @dragenter.prevent="dragOverIndex = -1"
+              class="h-8 mb-2 cursor-move transition-colors"
+              :class="dragOverIndex === -1 ? 'bg-blue-100' : 'bg-transparent'"
             >
+              <div
+                v-if="dragOverIndex === -1"
+                class="h-1 bg-blue-500 rounded-full"
+              ></div>
+            </div>
+            
+            <template v-for="(element, index) in elements" :key="element.id">
+              <!-- Drop zone indicator above element -->
+              <div
+                v-if="dragOverIndex === index && draggingIndex !== null && draggingIndex < index"
+                class="h-1 bg-blue-500 rounded-full mb-2 -mt-2"
+              ></div>
+              
+              <div
+                :draggable="true"
+                @dragstart="handleDragStart($event, index)"
+                @dragover.prevent="handleDragOver($event, index)"
+                @dragleave="handleDragLeave"
+                @drop="handleDrop($event, index)"
+                @dragend="handleDragEnd"
+                :class="[
+                  'flex items-center p-4 rounded-lg transition-colors border border-gray-300 cursor-move',
+                  element.archived 
+                    ? 'bg-gray-200 hover:bg-gray-300' 
+                    : 'bg-gray-50 hover:bg-gray-100',
+                  draggingIndex === index ? 'opacity-50' : '',
+                  dragOverIndex === index && draggingIndex !== null && draggingIndex > index ? 'border-blue-500 border-2' : ''
+                ]"
+              >
               <!-- Checkbox -->
               <input
                 type="checkbox"
@@ -166,6 +194,28 @@
                 </template>
               </div>
             </div>
+            
+            <!-- Drop zone indicator below element when dragging down -->
+            <div
+              v-if="dragOverIndex === index && draggingIndex !== null && draggingIndex > index"
+              class="h-1 bg-blue-500 rounded-full mt-2"
+            ></div>
+            </template>
+            
+            <!-- Drop zone at the bottom -->
+            <div
+              v-if="draggingIndex !== null"
+              @dragover.prevent="handleDragOver($event, elements.length)"
+              @drop="handleDrop($event, elements.length)"
+              @dragenter.prevent="dragOverIndex = elements.length"
+              class="h-8 mt-2 cursor-move transition-colors"
+              :class="dragOverIndex === elements.length ? 'bg-blue-100' : 'bg-transparent'"
+            >
+              <div
+                v-if="dragOverIndex === elements.length"
+                class="h-1 bg-blue-500 rounded-full"
+              ></div>
+            </div>
           </div>
         </div>
       </div>
@@ -258,6 +308,8 @@ export default {
       editingElement: null,
       lang: 'en',
       allElements: [], // Store all elements for statistics
+      draggingIndex: null,
+      dragOverIndex: null,
     };
   },
   computed: {
@@ -430,6 +482,95 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       });
+    },
+    
+    handleDragStart(event, index) {
+      this.draggingIndex = index;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/html', event.target);
+      event.target.style.opacity = '0.5';
+    },
+    
+    handleDragOver(event, index) {
+      event.preventDefault();
+      event.stopPropagation();
+      // Allow dropping at top (-1) or bottom (elements.length) or between elements
+      if (this.draggingIndex !== null) {
+        // If hovering over a regular element, clear edge positions
+        if (index >= 0 && index < this.elements.length) {
+          // Special handling for edge positions - clear them when over regular elements
+          if (this.dragOverIndex === -1 || this.dragOverIndex === this.elements.length) {
+            this.dragOverIndex = null;
+          }
+        }
+        
+        // Set the drag over index
+        if (index === -1 || index === this.elements.length) {
+          this.dragOverIndex = index;
+        } else if (this.draggingIndex !== index) {
+          this.dragOverIndex = index;
+        }
+      }
+    },
+    
+    
+    handleDragLeave(event) {
+      // Only clear if we're actually leaving the element (not just moving to a child)
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        // Don't clear immediately, let dragover handle it
+      }
+    },
+    
+    handleDrop(event, dropIndex) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (this.draggingIndex === null) {
+        this.dragOverIndex = null;
+        return;
+      }
+      
+      // Don't do anything if dropping on the same position
+      if (dropIndex === this.draggingIndex) {
+        this.dragOverIndex = null;
+        return;
+      }
+      
+      const draggedElement = this.elements[this.draggingIndex];
+      const newElements = [...this.elements];
+      
+      // Remove the dragged element from its original position
+      newElements.splice(this.draggingIndex, 1);
+      
+      // Calculate the correct insertion index
+      let insertIndex;
+      if (dropIndex === -1) {
+        // Moving to the top
+        insertIndex = 0;
+      } else if (dropIndex === this.elements.length) {
+        // Moving to the bottom (after removal, array length is elements.length - 1)
+        insertIndex = newElements.length;
+      } else {
+        // Moving between elements
+        // If moving down (draggingIndex < dropIndex), the dropIndex shifts by -1 after removal
+        // If moving up (draggingIndex > dropIndex), the dropIndex stays the same
+        insertIndex = dropIndex;
+        if (this.draggingIndex < dropIndex) {
+          insertIndex = dropIndex - 1;
+        }
+      }
+      
+      // Insert it at the new position
+      newElements.splice(insertIndex, 0, draggedElement);
+      
+      this.elements = newElements;
+      this.dragOverIndex = null;
+    },
+    
+    handleDragEnd(event) {
+      event.target.style.opacity = '';
+      this.draggingIndex = null;
+      this.dragOverIndex = null;
     }
   },
   async mounted() {
