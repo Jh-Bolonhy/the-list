@@ -61,30 +61,25 @@
             <p class="text-gray-500">{{ t('noElements') }}</p>
           </div>
 
-          <transition-group v-else name="list" tag="div" class="space-y-3">
-            <!-- Drop zone at the top - always present but minimal height -->
-            <div
-              key="drop-top"
-              @dragover.prevent="handleDragOver($event, -1)"
-              @drop.prevent="handleDrop($event, -1)"
-              @dragenter.prevent="handleDragOver($event, -1)"
-              class="cursor-move transition-all duration-300 ease-in-out"
-              :class="[
-                draggingIndex !== null ? 'min-h-[1px]' : 'h-0'
-              ]"
-            >
-            </div>
-            
+          <transition-group 
+            v-else 
+            name="list" 
+            tag="div" 
+            class="space-y-3"
+            @dragover.prevent="handleGlobalDragOver"
+            @drop.prevent="handleGlobalDrop"
+          >
             <template v-for="(element, index) in elements" :key="element.id">
               <div
                 :draggable="true"
+                :data-element-id="element.id"
                 @dragstart="handleDragStart($event, index)"
                 @dragover.prevent="handleDragOver($event, index)"
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, index)"
                 @dragend="handleDragEnd"
-                :style="getElementStyle(index)"
                 :class="[
+                  getElementClasses(index),
                   'flex items-center p-4 rounded-lg transition-all duration-300 ease-in-out border border-gray-300 cursor-move',
                   element.archived 
                     ? 'bg-gray-200 hover:bg-gray-300' 
@@ -95,7 +90,11 @@
                       ? 'opacity-90' 
                       : '',
                   dragOverIndex === index && draggingIndex !== null && draggingIndex !== index ? 'mt-1' : '',
-                  dragOverIndex === index + 1 && draggingIndex !== null && draggingIndex !== index ? 'mb-1' : ''
+                  dragOverIndex === index + 1 && draggingIndex !== null && draggingIndex !== index ? 'mb-1' : '',
+                  // Visual effects for middle third hover - increase size and add shadow
+                  hoverElementIndex === index && hoverElementPart === 'middle' && draggingIndex !== null && draggingIndex !== index
+                    ? 'shadow-lg scale-[1.02]' 
+                    : ''
                 ]"
               >
               <!-- Checkbox -->
@@ -194,19 +193,6 @@
             </div>
             
             </template>
-            
-            <!-- Drop zone at the bottom - always present but minimal height -->
-            <div
-              key="drop-bottom"
-              @dragover.prevent="handleDragOver($event, elements.length)"
-              @drop.prevent="handleDrop($event, elements.length)"
-              @dragenter.prevent="handleDragOver($event, elements.length)"
-              class="cursor-move transition-all duration-300 ease-in-out"
-              :class="[
-                draggingIndex !== null ? 'min-h-[1px]' : 'h-0'
-              ]"
-            >
-            </div>
           </transition-group>
         </div>
       </div>
@@ -305,6 +291,11 @@ export default {
       allElements: [], // Store all elements for statistics
       draggingIndex: null,
       dragOverIndex: null,
+      hoverElementIndex: null, // Index of element being hovered over
+      hoverElementPart: null, // 'upper', 'middle', 'lower', 'above', 'below', 'between'
+      mouseY: 0, // Current mouse Y position
+      dropZoneElements: [], // Array of element indices in the drop zone
+      mousePositionRelativeToCenter: null, // 'above' or 'below' relative to center line between elements
     };
   },
   computed: {
@@ -479,87 +470,320 @@ export default {
       });
     },
     
-    getElementStyle(index) {
-      // Only apply styles when actually dragging
+    getElementClasses(index) {
+      // Only apply classes when actually dragging
       if (this.draggingIndex === null) {
-        return {};
+        return '';
       }
       
       // The dragging element itself is handled by opacity
       if (index === this.draggingIndex) {
-        return {};
+        return '';
       }
       
-      const shiftAmount = 4; // 4px shift
+      const classes = [];
       
-      // Make the two neighboring elements converge to fill the gap left by the dragged element
-      // Element immediately before the dragged element moves down
-      if (index === this.draggingIndex - 1) {
-        return {
-          transform: `translateY(${shiftAmount}px)`
-        };
+      // Check if this element is in the drop zone
+      if (this.dropZoneElements.includes(index)) {
+        // Determine which margin to increase based on mouse position relative to center
+        if (this.hoverElementPart === 'between') {
+          // Two elements in drop zone - increase margin for both elements
+          if (index === this.hoverElementIndex) {
+            // Upper element - increase bottom margin
+            classes.push('mb-[30px]');
+          } else if (index === this.hoverElementIndex + 1) {
+            // Lower element - increase top margin
+            classes.push('mt-[30px]');
+          }
+        } else if (this.hoverElementPart === 'above') {
+          // Only first element in drop zone - always increase top margin
+          // (mouse is above the element, even if outside the list)
+          if (index === 0) {
+            classes.push('mt-[30px]'); // Always top margin when mouse is above
+          }
+        } else if (this.hoverElementPart === 'below') {
+          // Only last element in drop zone - always increase bottom margin
+          // (mouse is below the element, even if outside the list)
+          if (index === this.elements.length - 1) {
+            classes.push('mb-[30px]'); // Always bottom margin when mouse is below
+          }
+        }
       }
       
-      // Element immediately after the dragged element moves up
-      if (index === this.draggingIndex + 1) {
-        return {
-          transform: `translateY(-${shiftAmount}px)`
-        };
-      }
-      
-      
-      return {};
+      return classes.join(' ');
     },
     
     handleDragStart(event, index) {
       this.draggingIndex = index;
       this.dragOverIndex = null;
+      this.hoverElementIndex = null;
+      this.hoverElementPart = null;
+      this.dropZoneElements = [];
+      this.mousePositionRelativeToCenter = null;
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/html', event.target);
+      
+      // Add global dragover and drop listeners to track mouse position even outside the list
+      document.addEventListener('dragover', this.handleDocumentDragOver);
+      document.addEventListener('drop', this.handleDocumentDrop);
+    },
+    
+    handleDocumentDragOver(event) {
+      if (this.draggingIndex === null) {
+        return;
+      }
+      
+      event.preventDefault(); // Allow drop
+      
+      // Update mouse position
+      this.mouseY = event.clientY;
+      
+      // Find the list container - try multiple ways
+      let listContainer = event.target.closest('.space-y-3');
+      if (!listContainer) {
+        // Try to find by class in parent
+        listContainer = document.querySelector('.space-y-3');
+      }
+      if (!listContainer) {
+        this.dropZoneElements = [];
+        this.mousePositionRelativeToCenter = null;
+        return;
+      }
+      
+      // Get all draggable elements
+      const allElements = listContainer.querySelectorAll('[draggable="true"]');
+      if (allElements.length === 0) {
+        return;
+      }
+      
+      const mouseY = event.clientY;
+      const elementArray = Array.from(allElements);
+      
+      // Check if mouse is above the first element (above upper third)
+      const firstElement = elementArray[0];
+      if (firstElement) {
+        const firstRect = firstElement.getBoundingClientRect();
+        const firstThirdHeight = firstRect.height / 3;
+        
+        // Check if mouse is above the upper third of the first element
+        if (mouseY < firstRect.top + firstThirdHeight) {
+          this.hoverElementIndex = 0;
+          this.hoverElementPart = 'above';
+          this.dragOverIndex = 0;
+          this.dropZoneElements = [0]; // First element is in drop zone
+          this.mousePositionRelativeToCenter = null;
+          return;
+        }
+      }
+      
+      // Check if mouse is below the last element (below lower third)
+      const lastElement = elementArray[elementArray.length - 1];
+      if (lastElement) {
+        const lastRect = lastElement.getBoundingClientRect();
+        const lastThirdHeight = lastRect.height / 3;
+        
+        // Check if mouse is below the lower third of the last element
+        if (mouseY > lastRect.bottom - lastThirdHeight) {
+          this.hoverElementIndex = this.elements.length - 1;
+          this.hoverElementPart = 'below';
+          this.dragOverIndex = this.elements.length;
+          this.dropZoneElements = [this.elements.length - 1]; // Last element is in drop zone
+          this.mousePositionRelativeToCenter = null;
+          return;
+        }
+      }
+      
+      // Check if mouse is between any two elements
+      for (let i = 0; i < elementArray.length - 1; i++) {
+        const currentElement = elementArray[i];
+        const nextElement = elementArray[i + 1];
+        
+        if (currentElement && nextElement) {
+          const currentRect = currentElement.getBoundingClientRect();
+          const nextRect = nextElement.getBoundingClientRect();
+          
+          // Lower third of upper element starts here
+          const currentLowerThirdStart = currentRect.bottom - currentRect.height / 3;
+          // Upper third of lower element ends here
+          const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
+          
+          // If mouse is in the extended zone: lower third of upper element, space between, or upper third of lower element
+          // Use >= and <= to include the boundaries
+          if (mouseY >= currentLowerThirdStart && mouseY <= nextUpperThirdEnd) {
+            // Find the actual index in elements array
+            const currentElementId = currentElement.getAttribute('data-element-id');
+            const currentIndex = this.elements.findIndex(e => e.id.toString() === currentElementId);
+            
+            if (currentIndex !== -1) {
+              this.hoverElementIndex = currentIndex;
+              this.hoverElementPart = 'between';
+              this.dragOverIndex = currentIndex + 1;
+              
+              // Set drop zone elements
+              this.dropZoneElements = [currentIndex, currentIndex + 1];
+              
+              // Calculate center line between the two elements
+              const centerY = (currentRect.bottom + nextRect.top) / 2;
+              
+              // Determine mouse position relative to center line
+              if (mouseY < centerY) {
+                this.mousePositionRelativeToCenter = 'above';
+              } else {
+                this.mousePositionRelativeToCenter = 'below';
+              }
+              
+              return;
+            }
+          }
+        }
+      }
     },
     
     handleDragOver(event, index) {
       event.preventDefault();
       event.stopPropagation();
-      // Allow dropping at top (-1) or bottom (elements.length) or between elements
-      if (this.draggingIndex !== null) {
-        // If hovering over a regular element, check which third of the element the cursor is in
-        if (index >= 0 && index < this.elements.length && this.draggingIndex !== index) {
-          // Get the element's bounding rectangle
-          const elementRect = event.currentTarget.getBoundingClientRect();
-          const y = event.clientY - elementRect.top;
-          const elementHeight = elementRect.height;
-          const thirdHeight = elementHeight / 3;
-          
-          // Check if cursor is in upper or lower third
-          const isUpperThird = y < thirdHeight;
-          const isLowerThird = y > (elementHeight - thirdHeight);
-          
-          // Only set dragOverIndex if in upper or lower third
-          if (isUpperThird) {
-            // Dropping in upper third - insert before this element
-            this.dragOverIndex = index;
-            // Clear top position if accidentally set
-            if (this.dragOverIndex === -1) {
-              this.dragOverIndex = null;
+      this.mouseY = event.clientY;
+      
+      if (this.draggingIndex === null) {
+        return;
+      }
+      
+      // If hovering over the same element being dragged, ignore
+      if (index === this.draggingIndex) {
+        this.dragOverIndex = null;
+        this.hoverElementIndex = null;
+        this.hoverElementPart = null;
+        return;
+      }
+      
+      // If hovering over a regular element
+      if (index >= 0 && index < this.elements.length) {
+        const elementRect = event.currentTarget.getBoundingClientRect();
+        const elementHeight = elementRect.height;
+        const thirdHeight = elementHeight / 3;
+        const mouseY = event.clientY;
+        
+        // Get all draggable elements to find neighbors
+        const allElements = event.currentTarget.parentElement.querySelectorAll('[draggable="true"]');
+        const elementArray = Array.from(allElements);
+        const currentElementIndex = elementArray.indexOf(event.currentTarget);
+        
+        // Check if mouse is above upper third of first element - insert at beginning
+        if (index === 0 && mouseY < elementRect.top + thirdHeight) {
+          this.hoverElementIndex = 0;
+          this.hoverElementPart = 'above';
+          this.dragOverIndex = 0;
+          this.dropZoneElements = [0];
+          this.mousePositionRelativeToCenter = null;
+          return;
+        }
+        
+        // Check if mouse is below lower third of last element - insert at end
+        if (index === this.elements.length - 1 && mouseY > elementRect.bottom - thirdHeight) {
+          this.hoverElementIndex = this.elements.length - 1;
+          this.hoverElementPart = 'below';
+          this.dragOverIndex = this.elements.length;
+          this.dropZoneElements = [this.elements.length - 1];
+          this.mousePositionRelativeToCenter = null;
+          return;
+        }
+        
+        // Check if mouse is in the zone between previous and current element
+        // Zone includes: lower third of previous element, space between, and upper third of current element
+        if (index > 0 && currentElementIndex > 0) {
+          const prevElement = elementArray[currentElementIndex - 1];
+          if (prevElement) {
+            const prevRect = prevElement.getBoundingClientRect();
+            // Lower third of previous element starts here
+            const prevLowerThirdStart = prevRect.bottom - prevRect.height / 3;
+            // Upper third of current element ends here
+            const currentUpperThirdEnd = elementRect.top + thirdHeight;
+            
+            // If mouse is in the extended zone (lower third of prev, space between, or upper third of current)
+            if (mouseY >= prevLowerThirdStart && mouseY <= currentUpperThirdEnd) {
+              this.hoverElementIndex = index - 1;
+              this.hoverElementPart = 'between';
+              this.dragOverIndex = index;
+              
+              // Set drop zone elements
+              this.dropZoneElements = [index - 1, index];
+              
+              // Calculate center line between the two elements
+              const centerY = (prevRect.bottom + elementRect.top) / 2;
+              
+              // Determine mouse position relative to center line
+              if (mouseY < centerY) {
+                this.mousePositionRelativeToCenter = 'above';
+              } else {
+                this.mousePositionRelativeToCenter = 'below';
+              }
+              
+              return;
             }
-          } else if (isLowerThird) {
-            // Dropping in lower third - insert after this element
-            this.dragOverIndex = index + 1;
-            // Allow elements.length for bottom position, only clear -1
-            if (this.dragOverIndex === -1) {
-              this.dragOverIndex = null;
-            }
-          } else {
-            // Middle third - don't allow dropping, clear dragOverIndex
-            this.dragOverIndex = null;
           }
-        } else if (index === -1 || index === this.elements.length) {
-          // Edge positions (top or bottom)
-          this.dragOverIndex = index;
-        } else if (this.draggingIndex === index) {
-          // Hovering over the same element being dragged
+        }
+        
+        // Check if mouse is in the zone between current and next element
+        // Zone includes: lower third of current element, space between, and upper third of next element
+        if (index < this.elements.length - 1 && currentElementIndex < elementArray.length - 1) {
+          const nextElement = elementArray[currentElementIndex + 1];
+          if (nextElement) {
+            const nextRect = nextElement.getBoundingClientRect();
+            // Lower third of current element starts here
+            const currentLowerThirdStart = elementRect.bottom - thirdHeight;
+            // Upper third of next element ends here
+            const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
+            
+            // If mouse is in the extended zone (lower third of current, space between, or upper third of next)
+            if (mouseY >= currentLowerThirdStart && mouseY <= nextUpperThirdEnd) {
+              this.hoverElementIndex = index;
+              this.hoverElementPart = 'between';
+              this.dragOverIndex = index + 1;
+              
+              // Set drop zone elements
+              this.dropZoneElements = [index, index + 1];
+              
+              // Calculate center line between the two elements
+              const centerY = (elementRect.bottom + nextRect.top) / 2;
+              
+              // Determine mouse position relative to center line
+              if (mouseY < centerY) {
+                this.mousePositionRelativeToCenter = 'above';
+              } else {
+                this.mousePositionRelativeToCenter = 'below';
+              }
+              
+              return;
+            }
+          }
+        }
+        
+        // If mouse is in middle third and not in between-elements zone, show visual effect but don't allow drop
+        const y = mouseY - elementRect.top;
+        const isMiddleThird = y >= thirdHeight && y <= (elementHeight - thirdHeight);
+        if (isMiddleThird) {
+          this.hoverElementIndex = index;
+          this.hoverElementPart = 'middle';
           this.dragOverIndex = null;
+          this.dropZoneElements = [];
+          this.mousePositionRelativeToCenter = null;
+          return;
+        }
+        
+        // Default fallback: if in upper third, insert before; if in lower third, insert after
+        const isUpperThird = y < thirdHeight;
+        if (isUpperThird) {
+          this.hoverElementIndex = index;
+          this.hoverElementPart = 'upper';
+          this.dragOverIndex = index;
+          this.dropZoneElements = [];
+          this.mousePositionRelativeToCenter = null;
+        } else {
+          this.hoverElementIndex = index;
+          this.hoverElementPart = 'lower';
+          this.dragOverIndex = index + 1;
+          this.dropZoneElements = [];
+          this.mousePositionRelativeToCenter = null;
         }
       }
     },
@@ -568,7 +792,10 @@ export default {
     handleDragLeave(event) {
       // Only clear if we're actually leaving the element (not just moving to a child)
       if (!event.currentTarget.contains(event.relatedTarget)) {
-        // Don't clear immediately, let dragover handle it
+        // Clear drop zone when leaving the element
+        // The dragover handler will update it if we're still in a valid zone
+        this.dropZoneElements = [];
+        this.mousePositionRelativeToCenter = null;
       }
     },
     
@@ -614,10 +841,7 @@ export default {
       
       // Calculate the correct insertion index using actualDropIndex
       let insertIndex;
-      if (actualDropIndex === -1) {
-        // Moving to the top
-        insertIndex = 0;
-      } else if (actualDropIndex === this.elements.length) {
+      if (actualDropIndex === this.elements.length) {
         // Moving to the bottom (after removal, array length is elements.length - 1)
         insertIndex = newElements.length;
       } else {
@@ -638,8 +862,129 @@ export default {
     },
     
     handleDragEnd(event) {
+      // Remove global listeners
+      document.removeEventListener('dragover', this.handleDocumentDragOver);
+      document.removeEventListener('drop', this.handleDocumentDrop);
+      
       this.draggingIndex = null;
       this.dragOverIndex = null;
+      this.hoverElementIndex = null;
+      this.hoverElementPart = null;
+      this.dropZoneElements = [];
+      this.mousePositionRelativeToCenter = null;
+      this.mouseY = 0;
+    },
+    
+    handleGlobalDragOver(event) {
+      // This handles dragover on the list container itself (between elements)
+      this.handleDocumentDragOver(event);
+    },
+    
+    handleGlobalDrop(event) {
+      // Handle drop on the list container (between elements or outside)
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (this.draggingIndex === null) {
+        return;
+      }
+      
+      // Update dragOverIndex before calling handleDrop
+      // This ensures we have the correct position even if dragover wasn't called recently
+      this.handleDocumentDragOver(event);
+      
+      // If dragOverIndex is still null, try to determine position from mouse coordinates
+      if (this.dragOverIndex === null) {
+        const listContainer = event.currentTarget;
+        const allElements = listContainer.querySelectorAll('[draggable="true"]');
+        
+        if (allElements.length > 0) {
+          const mouseY = event.clientY;
+          const firstElement = allElements[0];
+          const lastElement = allElements[allElements.length - 1];
+          
+          if (firstElement) {
+            const firstRect = firstElement.getBoundingClientRect();
+            const firstThirdHeight = firstRect.height / 3;
+            if (mouseY < firstRect.top + firstThirdHeight) {
+              this.dragOverIndex = 0;
+              this.hoverElementIndex = 0;
+              this.hoverElementPart = 'above';
+            }
+          }
+          
+          if (lastElement && this.dragOverIndex === null) {
+            const lastRect = lastElement.getBoundingClientRect();
+            const lastThirdHeight = lastRect.height / 3;
+            if (mouseY > lastRect.bottom - lastThirdHeight) {
+              this.dragOverIndex = this.elements.length;
+              this.hoverElementIndex = this.elements.length - 1;
+              this.hoverElementPart = 'below';
+            }
+          }
+        }
+      }
+      
+      // Use the same drop logic as regular handleDrop
+      this.handleDrop(event, null);
+    },
+    
+    handleDocumentDrop(event) {
+      // Handle drop anywhere on the document (even outside the list)
+      if (this.draggingIndex === null) {
+        return;
+      }
+      
+      // Only process if this is related to our drag operation
+      // Check if we're dropping near the list
+      const listContainer = document.querySelector('.space-y-3');
+      if (!listContainer) {
+        return;
+      }
+      
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Update dragOverIndex based on mouse position
+      this.handleDocumentDragOver(event);
+      
+      // If dragOverIndex is still null, try to determine position from mouse coordinates
+      if (this.dragOverIndex === null) {
+        const allElements = listContainer.querySelectorAll('[draggable="true"]');
+        
+        if (allElements.length > 0) {
+          const mouseY = event.clientY;
+          const firstElement = allElements[0];
+          const lastElement = allElements[allElements.length - 1];
+          
+          if (firstElement) {
+            const firstRect = firstElement.getBoundingClientRect();
+            const firstThirdHeight = firstRect.height / 3;
+            // If mouse is above the upper third of first element (even if outside visual bounds)
+            if (mouseY < firstRect.top + firstThirdHeight) {
+              this.dragOverIndex = 0;
+              this.hoverElementIndex = 0;
+              this.hoverElementPart = 'above';
+            }
+          }
+          
+          if (lastElement && this.dragOverIndex === null) {
+            const lastRect = lastElement.getBoundingClientRect();
+            const lastThirdHeight = lastRect.height / 3;
+            // If mouse is below the lower third of last element (even if outside visual bounds)
+            if (mouseY > lastRect.bottom - lastThirdHeight) {
+              this.dragOverIndex = this.elements.length;
+              this.hoverElementIndex = this.elements.length - 1;
+              this.hoverElementPart = 'below';
+            }
+          }
+        }
+      }
+      
+      // Use the same drop logic as regular handleDrop
+      if (this.dragOverIndex !== null) {
+        this.handleDrop(event, null);
+      }
     }
   },
   async mounted() {
