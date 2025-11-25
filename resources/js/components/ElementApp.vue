@@ -85,7 +85,7 @@
                     ? 'bg-gray-200 hover:bg-gray-300' 
                     : 'bg-gray-50 hover:bg-gray-100',
                   draggingIndex === index 
-                    ? 'shadow-2xl z-50' 
+                    ? 'shadow-2xl z-50 scale-[0.98]' 
                     : draggingIndex !== null 
                       ? 'opacity-90' 
                       : '',
