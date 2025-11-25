@@ -59,10 +59,17 @@ class ElementController extends Controller
         $request->validate([
             'title' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string',
-            'completed' => 'sometimes|boolean'
+            'completed' => 'sometimes|boolean',
+            'parent_element_id' => 'nullable|exists:elements,id'
         ]);
 
         $element = Element::findOrFail($id);
+        
+        // Prevent element from being its own parent
+        if ($request->has('parent_element_id') && $request->input('parent_element_id') == $id) {
+            return response()->json(['error' => 'Element cannot be its own parent'], 400);
+        }
+        
         $element->update($request->all());
         return response()->json($element);
     }

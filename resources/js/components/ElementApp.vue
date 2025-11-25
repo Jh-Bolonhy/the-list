@@ -57,7 +57,7 @@
             <p class="mt-2 text-gray-600">{{ t('loading') }}</p>
           </div>
 
-          <div v-else-if="elements.length === 0" class="text-center py-8">
+          <div v-else-if="hierarchicalElements.length === 0" class="text-center py-8">
             <p class="text-gray-500">{{ t('noElements') }}</p>
           </div>
 
@@ -69,7 +69,7 @@
             @dragover.prevent="handleGlobalDragOver"
             @drop.prevent="handleGlobalDrop"
           >
-            <template v-for="(element, index) in elements" :key="element.id">
+            <template v-for="(element, index) in hierarchicalElements" :key="element.id">
               <div
                 :draggable="true"
                 :data-element-id="element.id"
@@ -78,6 +78,10 @@
                 @dragleave="handleDragLeave"
                 @drop="handleDrop($event, index)"
                 @dragend="handleDragEnd"
+                :style="{
+                  marginLeft: element.level > 0 ? `${element.level * 20}px` : '0',
+                  marginTop: `-${(1 - Math.pow(0.8, element.level + 1)) * 0.75}rem`
+                }"
                 :class="[
                   getElementClasses(index),
                   'flex items-center p-4 rounded-lg transition-all duration-300 ease-in-out border border-gray-300 cursor-move',
@@ -344,6 +348,46 @@ export default {
     },
     archivedCount() {
       return this.allElements.filter(e => e.archived).length;
+    },
+    // Build hierarchical list: parents first, then their children with indentation
+    hierarchicalElements() {
+      const result = [];
+      const processed = new Set();
+      
+      // Helper function to add element and its children recursively
+      const addElementAndChildren = (element, level = 0) => {
+        if (processed.has(element.id)) {
+          return;
+        }
+        
+        // Add element with level information
+        result.push({
+          ...element,
+          level: level
+        });
+        processed.add(element.id);
+        
+        // Find and add children
+        const children = this.elements.filter(e => e.parent_element_id === element.id);
+        children.forEach(child => {
+          addElementAndChildren(child, level + 1);
+        });
+      };
+      
+      // First, add all root elements (those without parent)
+      const rootElements = this.elements.filter(e => !e.parent_element_id);
+      rootElements.forEach(root => {
+        addElementAndChildren(root, 0);
+      });
+      
+      // Then add any remaining elements that might have been missed (orphaned children)
+      this.elements.forEach(element => {
+        if (!processed.has(element.id)) {
+          addElementAndChildren(element, 0);
+        }
+      });
+      
+      return result;
     }
   },
   methods: {
@@ -526,6 +570,25 @@ export default {
       this.pendingElementId = null;
     },
     
+    async setParentElement(elementId, parentId) {
+      try {
+        // Prevent element from being its own parent
+        if (elementId === parentId) {
+          return;
+        }
+        
+        await axios.put(`/api/elements/${elementId}`, {
+          parent_element_id: parentId
+        });
+        // Reload elements to reflect the new hierarchy
+        await this.loadElements();
+        await this.loadAllElementsForStats();
+      } catch (error) {
+        console.error('Error setting parent element:', error);
+        alert(this.t('failedUpdate'));
+      }
+    },
+    
     formatDate(dateString) {
       return new Date(dateString).toLocaleDateString(this.lang === 'ru' ? 'ru-RU' : 'en-US', {
         year: 'numeric',
@@ -570,7 +633,7 @@ export default {
         } else if (this.hoverElementPart === 'below') {
           // Only last element in drop zone - always increase bottom margin
           // (mouse is below the element, even if outside the list)
-          if (index === this.elements.length - 1) {
+          if (index === this.hierarchicalElements.length - 1) {
             classes.push('mb-[30px]'); // Always bottom margin when mouse is below
           }
         }
@@ -650,10 +713,10 @@ export default {
         
         // Check if mouse is below the lower third of the last element
         if (mouseY > lastRect.bottom - lastThirdHeight) {
-          this.hoverElementIndex = this.elements.length - 1;
+          this.hoverElementIndex = this.hierarchicalElements.length - 1;
           this.hoverElementPart = 'below';
-          this.dragOverIndex = this.elements.length;
-          this.dropZoneElements = [this.elements.length - 1]; // Last element is in drop zone
+          this.dragOverIndex = this.hierarchicalElements.length;
+          this.dropZoneElements = [this.hierarchicalElements.length - 1]; // Last element is in drop zone
           this.mousePositionRelativeToCenter = null;
           return;
         }
@@ -703,6 +766,60 @@ export default {
           }
         }
       }
+      
+      // Check if mouse is in the middle third of any element
+      for (let i = 0; i < elementArray.length; i++) {
+        const element = elementArray[i];
+        if (element) {
+          const elementRect = element.getBoundingClientRect();
+          const elementHeight = elementRect.height;
+          const thirdHeight = elementHeight / 3;
+          
+          // Check if mouse is in middle third
+          const y = mouseY - elementRect.top;
+          const isMiddleThird = y >= thirdHeight && y <= (elementHeight - thirdHeight);
+          
+          if (isMiddleThird) {
+            // Find the actual index in elements array
+            const elementId = element.getAttribute('data-element-id');
+            const elementIndex = this.elements.findIndex(e => e.id.toString() === elementId);
+            
+            if (elementIndex !== -1 && elementIndex !== this.draggingIndex) {
+              // Check if we're not in a 'between' zone
+              let isInBetweenZone = false;
+              if (i > 0) {
+                const prevElement = elementArray[i - 1];
+                if (prevElement) {
+                  const prevRect = prevElement.getBoundingClientRect();
+                  const prevLowerThirdStart = prevRect.bottom - prevRect.height / 3;
+                  if (mouseY >= prevLowerThirdStart && mouseY <= elementRect.top + thirdHeight) {
+                    isInBetweenZone = true;
+                  }
+                }
+              }
+              if (!isInBetweenZone && i < elementArray.length - 1) {
+                const nextElement = elementArray[i + 1];
+                if (nextElement) {
+                  const nextRect = nextElement.getBoundingClientRect();
+                  const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
+                  if (mouseY >= elementRect.bottom - thirdHeight && mouseY <= nextUpperThirdEnd) {
+                    isInBetweenZone = true;
+                  }
+                }
+              }
+              
+              if (!isInBetweenZone) {
+                this.hoverElementIndex = elementIndex;
+                this.hoverElementPart = 'middle';
+                this.dragOverIndex = null;
+                this.dropZoneElements = [elementIndex];
+                this.mousePositionRelativeToCenter = null;
+                return;
+              }
+            }
+          }
+        }
+      }
     },
     
     handleDragOver(event, index) {
@@ -723,7 +840,7 @@ export default {
       }
       
       // If hovering over a regular element
-      if (index >= 0 && index < this.elements.length) {
+      if (index >= 0 && index < this.hierarchicalElements.length) {
         const elementRect = event.currentTarget.getBoundingClientRect();
         const elementHeight = elementRect.height;
         const thirdHeight = elementHeight / 3;
@@ -745,11 +862,11 @@ export default {
         }
         
         // Check if mouse is below lower third of last element - insert at end
-        if (index === this.elements.length - 1 && mouseY > elementRect.bottom - thirdHeight) {
-          this.hoverElementIndex = this.elements.length - 1;
+        if (index === this.hierarchicalElements.length - 1 && mouseY > elementRect.bottom - thirdHeight) {
+          this.hoverElementIndex = this.hierarchicalElements.length - 1;
           this.hoverElementPart = 'below';
-          this.dragOverIndex = this.elements.length;
-          this.dropZoneElements = [this.elements.length - 1];
+          this.dragOverIndex = this.hierarchicalElements.length;
+          this.dropZoneElements = [this.hierarchicalElements.length - 1];
           this.mousePositionRelativeToCenter = null;
           return;
         }
@@ -791,7 +908,7 @@ export default {
         
         // Check if mouse is in the zone between current and next element
         // Zone includes: lower third of current element, space between, and upper third of next element
-        if (index < this.elements.length - 1 && currentElementIndex < elementArray.length - 1) {
+        if (index < this.hierarchicalElements.length - 1 && currentElementIndex < elementArray.length - 1) {
           const nextElement = elementArray[currentElementIndex + 1];
           if (nextElement) {
             const nextRect = nextElement.getBoundingClientRect();
@@ -874,8 +991,25 @@ export default {
         return;
       }
       
-      // Don't do anything if dragOverIndex is null (middle third or invalid drop)
+      // If dragOverIndex is null but hoverElementPart is 'middle', make it a child
       if (this.dragOverIndex === null) {
+        // Check if we're dropping on middle third of an element (making it a child)
+        if (this.hoverElementPart === 'middle' && this.hoverElementIndex !== null) {
+          const draggedElement = this.hierarchicalElements[this.draggingIndex];
+          const parentElement = this.hierarchicalElements[this.hoverElementIndex];
+          
+          // Prevent element from being its own parent or child
+          if (draggedElement.id === parentElement.id) {
+            this.dragOverIndex = null;
+            return;
+          }
+          
+          // Update parent_element_id via API
+          this.setParentElement(draggedElement.id, parentElement.id);
+          this.dragOverIndex = null;
+          return;
+        }
+        // Otherwise, it's an invalid drop
         return;
       }
       
@@ -893,35 +1027,54 @@ export default {
       }
       
       // If dropping at draggingIndex + 1 and it's not the bottom position, it's the original position
-      if (actualDropIndex === this.draggingIndex + 1 && actualDropIndex !== this.elements.length) {
+      if (actualDropIndex === this.draggingIndex + 1 && actualDropIndex !== this.hierarchicalElements.length) {
         // Element returns to its original position - no change needed
         this.dragOverIndex = null;
         return;
       }
       
-      const draggedElement = this.elements[this.draggingIndex];
+      const draggedElement = this.hierarchicalElements[this.draggingIndex];
+      // For reordering, we need to work with the original elements array
+      // Find the original element in the elements array
+      const originalElement = this.elements.find(e => e.id === draggedElement.id);
+      if (!originalElement) {
+        this.dragOverIndex = null;
+        return;
+      }
+      
       const newElements = [...this.elements];
+      const originalIndex = this.elements.findIndex(e => e.id === draggedElement.id);
       
       // Remove the dragged element from its original position
-      newElements.splice(this.draggingIndex, 1);
+      newElements.splice(originalIndex, 1);
       
       // Calculate the correct insertion index using actualDropIndex
+      // We need to find the target element in the original elements array
       let insertIndex;
-      if (actualDropIndex === this.elements.length) {
+      if (actualDropIndex === this.hierarchicalElements.length) {
         // Moving to the bottom (after removal, array length is elements.length - 1)
         insertIndex = newElements.length;
       } else {
         // Moving between elements
-        // If moving down (draggingIndex < actualDropIndex), the actualDropIndex shifts by -1 after removal
-        // If moving up (draggingIndex > actualDropIndex), the actualDropIndex stays the same
-        insertIndex = actualDropIndex;
-        if (this.draggingIndex < actualDropIndex) {
-          insertIndex = actualDropIndex - 1;
+        // Find the target element in hierarchicalElements and then find it in original elements
+        const targetElement = this.hierarchicalElements[actualDropIndex];
+        if (targetElement) {
+          const targetOriginalIndex = this.elements.findIndex(e => e.id === targetElement.id);
+          if (targetOriginalIndex !== -1) {
+            insertIndex = targetOriginalIndex;
+            if (originalIndex < targetOriginalIndex) {
+              insertIndex = targetOriginalIndex - 1;
+            }
+          } else {
+            insertIndex = newElements.length;
+          }
+        } else {
+          insertIndex = newElements.length;
         }
       }
       
       // Insert it at the new position
-      newElements.splice(insertIndex, 0, draggedElement);
+      newElements.splice(insertIndex, 0, originalElement);
       
       this.elements = newElements;
       this.dragOverIndex = null;
@@ -989,6 +1142,23 @@ export default {
             }
           }
         }
+      }
+      
+      // Check if we're dropping on middle third (making it a child)
+      if (this.dragOverIndex === null && this.hoverElementPart === 'middle' && this.hoverElementIndex !== null) {
+        const draggedElement = this.hierarchicalElements[this.draggingIndex];
+        const parentElement = this.hierarchicalElements[this.hoverElementIndex];
+        
+        // Prevent element from being its own parent or child
+        if (draggedElement.id === parentElement.id) {
+          this.dragOverIndex = null;
+          return;
+        }
+        
+        // Update parent_element_id via API
+        this.setParentElement(draggedElement.id, parentElement.id);
+        this.dragOverIndex = null;
+        return;
       }
       
       // Use the same drop logic as regular handleDrop
