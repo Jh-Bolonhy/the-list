@@ -602,12 +602,9 @@ export default {
       
       // If dropping at the very end
       if (!nextElement && previousElement) {
-        // If previous element is root level, new element becomes root
-        if (previousElement.level === 0) {
-          return null;
-        }
-        // Otherwise, find the parent of the previous element
-        return this.findParentElementId(previousElement.id);
+        // When dropping at the end, element should always become root
+        // regardless of the level of the previous element
+        return null;
       }
       
       // If we have both previous and next elements
