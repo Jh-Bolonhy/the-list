@@ -589,6 +589,79 @@ export default {
       }
     },
     
+    // Determine the parent element ID based on drop position in hierarchical list
+    determineParentFromDropPosition(dropIndex) {
+      // If dropping at the very beginning (index 0), element becomes root
+      if (dropIndex === 0) {
+        return null;
+      }
+      
+      // Get elements before and at the drop position
+      const previousElement = dropIndex > 0 ? this.hierarchicalElements[dropIndex - 1] : null;
+      const nextElement = dropIndex < this.hierarchicalElements.length ? this.hierarchicalElements[dropIndex] : null;
+      
+      // If dropping at the very end
+      if (!nextElement && previousElement) {
+        // If previous element is root level, new element becomes root
+        if (previousElement.level === 0) {
+          return null;
+        }
+        // Otherwise, find the parent of the previous element
+        return this.findParentElementId(previousElement.id);
+      }
+      
+      // If we have both previous and next elements
+      if (previousElement && nextElement) {
+        const prevLevel = previousElement.level;
+        const nextLevel = nextElement.level;
+        
+        // Case 1: Dropping between root element (level 0) and its child (level 1)
+        // Element becomes child of the root element
+        if (prevLevel === 0 && nextLevel === 1) {
+          return previousElement.id;
+        }
+        
+        // Case 2: Dropping between two children of the same parent (same level > 0)
+        // Element becomes child of the same parent
+        if (prevLevel === nextLevel && prevLevel > 0) {
+          return this.findParentElementId(previousElement.id);
+        }
+        
+        // Case 3: Dropping between parent (level N) and its child (level N+1)
+        // Element becomes child of the parent
+        if (nextLevel === prevLevel + 1) {
+          return previousElement.id;
+        }
+        
+        // Case 4: Dropping between two root elements (both level 0)
+        // Element becomes root
+        if (prevLevel === 0 && nextLevel === 0) {
+          return null;
+        }
+        
+        // Case 5: Dropping between elements where next is at lower level than previous
+        // Find the common ancestor or make it root
+        if (nextLevel < prevLevel) {
+          // Find the element at the same level as next, or make it root
+          return nextLevel === 0 ? null : this.findParentElementId(nextElement.id);
+        }
+      }
+      
+      // Default: if previous element exists and is not root, use its parent
+      if (previousElement && previousElement.level > 0) {
+        return this.findParentElementId(previousElement.id);
+      }
+      
+      // Default: element becomes root
+      return null;
+    },
+    
+    // Find the parent element ID for a given element
+    findParentElementId(elementId) {
+      const element = this.elements.find(e => e.id === elementId);
+      return element ? element.parent_element_id : null;
+    },
+    
     formatDate(dateString) {
       return new Date(dateString).toLocaleDateString(this.lang === 'ru' ? 'ru-RU' : 'en-US', {
         year: 'numeric',
@@ -982,7 +1055,7 @@ export default {
       }
     },
     
-    handleDrop(event, dropIndex) {
+    async handleDrop(event, dropIndex) {
       event.preventDefault();
       event.stopPropagation();
       
@@ -1038,6 +1111,18 @@ export default {
       // Find the original element in the elements array
       const originalElement = this.elements.find(e => e.id === draggedElement.id);
       if (!originalElement) {
+        this.dragOverIndex = null;
+        return;
+      }
+      
+      // Determine the new parent based on drop position
+      const newParentId = this.determineParentFromDropPosition(actualDropIndex);
+      
+      // If parent changed, update it via API
+      if (originalElement.parent_element_id !== newParentId) {
+        this.setParentElement(originalElement.id, newParentId);
+        // Reload elements to reflect the new hierarchy
+        await this.loadElements();
         this.dragOverIndex = null;
         return;
       }
@@ -1099,7 +1184,7 @@ export default {
       this.handleDocumentDragOver(event);
     },
     
-    handleGlobalDrop(event) {
+    async handleGlobalDrop(event) {
       // Handle drop on the list container (between elements or outside)
       event.preventDefault();
       event.stopPropagation();
@@ -1136,8 +1221,8 @@ export default {
             const lastRect = lastElement.getBoundingClientRect();
             const lastThirdHeight = lastRect.height / 3;
             if (mouseY > lastRect.bottom - lastThirdHeight) {
-              this.dragOverIndex = this.elements.length;
-              this.hoverElementIndex = this.elements.length - 1;
+              this.dragOverIndex = this.hierarchicalElements.length;
+              this.hoverElementIndex = this.hierarchicalElements.length - 1;
               this.hoverElementPart = 'below';
             }
           }
@@ -1165,7 +1250,7 @@ export default {
       this.handleDrop(event, null);
     },
     
-    handleDocumentDrop(event) {
+    async handleDocumentDrop(event) {
       // Handle drop anywhere on the document (even outside the list)
       if (this.draggingIndex === null) {
         return;
@@ -1209,8 +1294,8 @@ export default {
             const lastThirdHeight = lastRect.height / 3;
             // If mouse is below the lower third of last element (even if outside visual bounds)
             if (mouseY > lastRect.bottom - lastThirdHeight) {
-              this.dragOverIndex = this.elements.length;
-              this.hoverElementIndex = this.elements.length - 1;
+              this.dragOverIndex = this.hierarchicalElements.length;
+              this.hoverElementIndex = this.hierarchicalElements.length - 1;
               this.hoverElementPart = 'below';
             }
           }
@@ -1219,7 +1304,7 @@ export default {
       
       // Use the same drop logic as regular handleDrop
       if (this.dragOverIndex !== null) {
-        this.handleDrop(event, null);
+        await this.handleDrop(event, null);
       }
     }
   },
