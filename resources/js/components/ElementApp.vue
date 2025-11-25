@@ -314,7 +314,7 @@ export default {
   components: { LanguageSwitcher },
   data() {
     return {
-      elements: [],
+      elements: [], // Store all elements (used for both display and statistics)
       loading: true,
       viewMode: 'active',
       showAddModal: false,
@@ -324,7 +324,6 @@ export default {
       },
       editingElement: null,
       lang: 'en',
-      allElements: [], // Store all elements for statistics
       draggingIndex: null,
       dragOverIndex: null,
       hoverElementIndex: null, // Index of element being hovered over
@@ -339,15 +338,25 @@ export default {
     };
   },
   computed: {
+    // Filtered elements based on viewMode
+    filteredElements() {
+      if (this.viewMode === 'active') {
+        return this.elements.filter(e => !e.archived);
+      } else if (this.viewMode === 'archived') {
+        return this.elements.filter(e => e.archived);
+      }
+      // 'both' - return all elements
+      return this.elements;
+    },
     activeCount() {
-      return this.allElements.filter(e => !e.archived).length;
+      return this.elements.filter(e => !e.archived).length;
     },
     activeCompletedCount() {
-      const active = this.allElements.filter(e => !e.archived);
+      const active = this.elements.filter(e => !e.archived);
       return active.filter(e => e.completed).length;
     },
     archivedCount() {
-      return this.allElements.filter(e => e.archived).length;
+      return this.elements.filter(e => e.archived).length;
     },
     // Build hierarchical list: parents first, then their children with indentation
     hierarchicalElements() {
@@ -368,20 +377,20 @@ export default {
         processed.add(element.id);
         
         // Find and add children
-        const children = this.elements.filter(e => e.parent_element_id === element.id);
+        const children = this.filteredElements.filter(e => e.parent_element_id === element.id);
         children.forEach(child => {
           addElementAndChildren(child, level + 1);
         });
       };
       
       // First, add all root elements (those without parent)
-      const rootElements = this.elements.filter(e => !e.parent_element_id);
+      const rootElements = this.filteredElements.filter(e => !e.parent_element_id);
       rootElements.forEach(root => {
         addElementAndChildren(root, 0);
       });
       
       // Then add any remaining elements that might have been missed (orphaned children)
-      this.elements.forEach(element => {
+      this.filteredElements.forEach(element => {
         if (!processed.has(element.id)) {
           addElementAndChildren(element, 0);
         }
@@ -400,34 +409,14 @@ export default {
     async loadElements() {
       try {
         this.loading = true;
-        let url = '/api/elements';
-        
-        if (this.viewMode === 'active') {
-          url = '/api/elements?archived=false';
-        } else if (this.viewMode === 'archived') {
-          url = '/api/elements?archived=true';
-        }
-        // For 'both', don't add archived parameter - API will return all
-        
-        const response = await axios.get(url);
+        // Always load all elements - filtering is done by computed property
+        const response = await axios.get('/api/elements');
         this.elements = response.data;
-        
-        // Load all elements for statistics
-        await this.loadAllElementsForStats();
       } catch (error) {
         console.error('Error loading elements:', error);
         alert(this.t('failedLoad'));
       } finally {
         this.loading = false;
-      }
-    },
-    
-    async loadAllElementsForStats() {
-      try {
-        const response = await axios.get('/api/elements');
-        this.allElements = response.data;
-      } catch (error) {
-        console.error('Error loading all elements for stats:', error);
       }
     },
     
@@ -441,14 +430,8 @@ export default {
         const response = await axios.post('/api/elements', this.newElement);
         const newElement = response.data;
         
-        // Add to elements array if it matches current view mode
-        if (this.viewMode === 'both' || 
-            (this.viewMode === 'active' && !newElement.archived) ||
-            (this.viewMode === 'archived' && newElement.archived)) {
-          this.elements.unshift(newElement);
-        }
-        // Always add to allElements for statistics
-        this.allElements.unshift(newElement);
+        // Add to elements array (filtering is handled by computed property)
+        this.elements.unshift(newElement);
         
         this.closeAddModal();
       } catch (error) {
@@ -465,11 +448,6 @@ export default {
         const index = this.elements.findIndex(e => e.id === element.id);
         if (index !== -1) {
           this.elements[index] = response.data;
-        }
-        // Update stats
-        const allIndex = this.allElements.findIndex(e => e.id === element.id);
-        if (allIndex !== -1) {
-          this.allElements[allIndex] = response.data;
         }
       } catch (error) {
         console.error('Error toggling element:', error);
@@ -491,10 +469,10 @@ export default {
         if (index !== -1) {
           this.elements[index] = response.data;
         }
-        // Update stats
-        const allIndex = this.allElements.findIndex(e => e.id === this.editingElement.id);
-        if (allIndex !== -1) {
-          this.allElements[allIndex] = response.data;
+        // Update in elements array
+        const elementIndex = this.elements.findIndex(e => e.id === this.editingElement.id);
+        if (elementIndex !== -1) {
+          this.elements[elementIndex] = response.data;
         }
         this.editingElement = null;
       } catch (error) {
@@ -521,11 +499,7 @@ export default {
         
         // Update local state for element and all its descendants
         this.updateElementAndDescendants(id, { archived: true });
-        
-        // If showing only active elements, remove archived element from view
-        if (this.viewMode === 'active') {
-          this.removeElementAndDescendantsFromView(id);
-        }
+        // Note: Filtering is handled automatically by filteredElements computed property
       } catch (error) {
         console.error('Error archiving element:', error);
         alert(this.t('failedArchive'));
@@ -538,11 +512,7 @@ export default {
         
         // Update local state for element and all its descendants
         this.updateElementAndDescendants(id, { archived: false });
-        
-        // If showing only archived elements, remove restored element from view
-        if (this.viewMode === 'archived') {
-          this.removeElementAndDescendantsFromView(id);
-        }
+        // Note: Filtering is handled automatically by filteredElements computed property
       } catch (error) {
         console.error('Error restoring element:', error);
         alert(this.t('failedRestore'));
@@ -561,15 +531,10 @@ export default {
       try {
         await axios.delete(`/api/elements/${id}/force`);
         
-        // Update local state instead of reloading
+        // Remove from elements array
         const elementIndex = this.elements.findIndex(e => e.id === id);
         if (elementIndex !== -1) {
           this.elements.splice(elementIndex, 1);
-        }
-        // Update in allElements for statistics
-        const allElementIndex = this.allElements.findIndex(e => e.id === id);
-        if (allElementIndex !== -1) {
-          this.allElements.splice(allElementIndex, 1);
         }
       } catch (error) {
         console.error('Error removing element:', error);
@@ -614,11 +579,6 @@ export default {
         const elementIndex = this.elements.findIndex(e => e.id === elementId);
         if (elementIndex !== -1) {
           this.elements[elementIndex].parent_element_id = parentId;
-        }
-        // Update in allElements for statistics
-        const allElementIndex = this.allElements.findIndex(e => e.id === elementId);
-        if (allElementIndex !== -1) {
-          this.allElements[allElementIndex].parent_element_id = parentId;
         }
       } catch (error) {
         console.error('Error setting parent element:', error);
@@ -706,12 +666,6 @@ export default {
           Object.assign(this.elements[elementIndex], updates);
         }
         
-        // Update in allElements array
-        const allElementIndex = this.allElements.findIndex(e => e.id === id);
-        if (allElementIndex !== -1) {
-          Object.assign(this.allElements[allElementIndex], updates);
-        }
-        
         // Find and update all children
         const children = this.elements.filter(e => e.parent_element_id === id);
         children.forEach(child => {
@@ -720,28 +674,6 @@ export default {
       };
       
       updateRecursive(elementId);
-    },
-    
-    // Remove element and all its descendants from the current view (elements array)
-    // but keep them in allElements for statistics
-    removeElementAndDescendantsFromView(elementId) {
-      // Helper function to recursively remove element and children from view
-      const removeRecursive = (id) => {
-        // Remove from elements array (current view)
-        const elementIndex = this.elements.findIndex(e => e.id === id);
-        if (elementIndex !== -1) {
-          this.elements.splice(elementIndex, 1);
-        }
-        
-        // Find and remove all children from view
-        // Note: we need to search in allElements to find all children, not just in elements
-        const children = this.allElements.filter(e => e.parent_element_id === id);
-        children.forEach(child => {
-          removeRecursive(child.id);
-        });
-      };
-      
-      removeRecursive(elementId);
     },
     
     formatDate(dateString) {
@@ -1169,11 +1101,6 @@ export default {
             const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
             if (elementIndex !== -1) {
               this.elements[elementIndex].parent_element_id = parentElement.id;
-              // Update in allElements for statistics
-              const allElementIndex = this.allElements.findIndex(e => e.id === draggedElement.id);
-              if (allElementIndex !== -1) {
-                this.allElements[allElementIndex].parent_element_id = parentElement.id;
-              }
             }
           } catch (error) {
             console.error('Error setting parent element:', error);
@@ -1229,11 +1156,6 @@ export default {
           const elementIndex = this.elements.findIndex(e => e.id === originalElement.id);
           if (elementIndex !== -1) {
             this.elements[elementIndex].parent_element_id = newParentId;
-            // Update in allElements for statistics
-            const allElementIndex = this.allElements.findIndex(e => e.id === originalElement.id);
-            if (allElementIndex !== -1) {
-              this.allElements[allElementIndex].parent_element_id = newParentId;
-            }
           }
         } catch (error) {
           console.error('Error setting parent element:', error);
@@ -1366,11 +1288,6 @@ export default {
           const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
           if (elementIndex !== -1) {
             this.elements[elementIndex].parent_element_id = parentElement.id;
-            // Update in allElements for statistics
-            const allElementIndex = this.allElements.findIndex(e => e.id === draggedElement.id);
-            if (allElementIndex !== -1) {
-              this.allElements[allElementIndex].parent_element_id = parentElement.id;
-            }
           }
         } catch (error) {
           console.error('Error setting parent element:', error);
@@ -1443,7 +1360,6 @@ export default {
     }
   },
   async mounted() {
-    await this.loadAllElementsForStats();
     await this.loadElements();
   },
   watch: {
