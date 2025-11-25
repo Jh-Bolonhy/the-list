@@ -262,6 +262,38 @@
         </transition>
       </div>
     </transition>
+
+    <!-- Confirmation Modal -->
+    <transition name="modal-fade">
+      <div
+        v-if="showConfirmModal"
+        class="fixed inset-0 bg-gray-900/70 flex items-center justify-center z-50 transition-opacity duration-300 ease-in-out"
+        @click.self="closeConfirmModal"
+      >
+        <transition name="modal-scale">
+          <div
+            class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all duration-300 ease-in-out"
+          >
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ t('confirm') }}</h3>
+            <p class="text-gray-600 mb-6">{{ confirmMessage }}</p>
+            <div class="flex space-x-3">
+              <button
+                @click="handleConfirm"
+                class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
+              >
+                {{ t('confirm') }}
+              </button>
+              <button
+                @click="closeConfirmModal"
+                class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-300 ease-in-out"
+              >
+                {{ t('cancel') }}
+              </button>
+            </div>
+          </div>
+        </transition>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -296,6 +328,10 @@ export default {
       mouseY: 0, // Current mouse Y position
       dropZoneElements: [], // Array of element indices in the drop zone
       mousePositionRelativeToCenter: null, // 'above' or 'below' relative to center line between elements
+      showConfirmModal: false, // Show confirmation modal
+      confirmAction: null, // 'archive' or 'remove'
+      confirmMessage: '', // Confirmation message
+      pendingElementId: null, // ID of element pending confirmation
     };
   },
   computed: {
@@ -419,11 +455,15 @@ export default {
       this.editingElement = null;
     },
     
-    async archiveElement(id) {
-      if (!confirm(this.t('confirmArchive'))) {
-        return;
-      }
-      
+    archiveElement(id) {
+      // Show confirmation modal instead of browser confirm
+      this.pendingElementId = id;
+      this.confirmAction = 'archive';
+      this.confirmMessage = this.t('confirmArchive');
+      this.showConfirmModal = true;
+    },
+    
+    async performArchive(id) {
       try {
         await axios.post(`/api/elements/${id}/archive`);
         await this.loadAllElementsForStats();
@@ -445,11 +485,15 @@ export default {
       }
     },
     
-    async removeElement(id) {
-      if (!confirm(this.t('confirmRemove'))) {
-        return;
-      }
-      
+    removeElement(id) {
+      // Show confirmation modal instead of browser confirm
+      this.pendingElementId = id;
+      this.confirmAction = 'remove';
+      this.confirmMessage = this.t('confirmRemove');
+      this.showConfirmModal = true;
+    },
+    
+    async performRemove(id) {
       try {
         await axios.delete(`/api/elements/${id}/force`);
         await this.loadAllElementsForStats();
@@ -458,6 +502,28 @@ export default {
         console.error('Error removing element:', error);
         alert(this.t('failedRemove'));
       }
+    },
+    
+    handleConfirm() {
+      if (this.pendingElementId === null) {
+        this.closeConfirmModal();
+        return;
+      }
+      
+      if (this.confirmAction === 'archive') {
+        this.performArchive(this.pendingElementId);
+      } else if (this.confirmAction === 'remove') {
+        this.performRemove(this.pendingElementId);
+      }
+      
+      this.closeConfirmModal();
+    },
+    
+    closeConfirmModal() {
+      this.showConfirmModal = false;
+      this.confirmAction = null;
+      this.confirmMessage = '';
+      this.pendingElementId = null;
     },
     
     formatDate(dateString) {

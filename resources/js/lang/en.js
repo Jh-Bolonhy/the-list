@@ -13,6 +13,7 @@ export default {
   remove: 'Remove',
   save: 'Save',
   cancel: 'Cancel',
+  confirm: 'Confirm',
   created: 'Created',
   confirmDelete: 'Are you sure you want to delete this element?',
   confirmArchive: 'Are you sure you want to archive this element and all its descendants?',
