@@ -439,10 +439,18 @@ export default {
     async handleAddElement() {
       try {
         const response = await axios.post('/api/elements', this.newElement);
-        this.elements.unshift(response.data);
+        const newElement = response.data;
+        
+        // Add to elements array if it matches current view mode
+        if (this.viewMode === 'both' || 
+            (this.viewMode === 'active' && !newElement.archived) ||
+            (this.viewMode === 'archived' && newElement.archived)) {
+          this.elements.unshift(newElement);
+        }
+        // Always add to allElements for statistics
+        this.allElements.unshift(newElement);
+        
         this.closeAddModal();
-        await this.loadAllElementsForStats();
-        await this.loadElements();
       } catch (error) {
         console.error('Error adding element:', error);
         alert(this.t('failedAdd'));
@@ -510,8 +518,14 @@ export default {
     async performArchive(id) {
       try {
         await axios.post(`/api/elements/${id}/archive`);
-        await this.loadAllElementsForStats();
-        await this.loadElements();
+        
+        // Update local state for element and all its descendants
+        this.updateElementAndDescendants(id, { archived: true });
+        
+        // If showing only active elements, remove archived element from view
+        if (this.viewMode === 'active') {
+          this.removeElementAndDescendantsFromView(id);
+        }
       } catch (error) {
         console.error('Error archiving element:', error);
         alert(this.t('failedArchive'));
@@ -521,8 +535,14 @@ export default {
     async restoreElement(id) {
       try {
         await axios.post(`/api/elements/${id}/restore`);
-        await this.loadAllElementsForStats();
-        await this.loadElements();
+        
+        // Update local state for element and all its descendants
+        this.updateElementAndDescendants(id, { archived: false });
+        
+        // If showing only archived elements, remove restored element from view
+        if (this.viewMode === 'archived') {
+          this.removeElementAndDescendantsFromView(id);
+        }
       } catch (error) {
         console.error('Error restoring element:', error);
         alert(this.t('failedRestore'));
@@ -540,8 +560,17 @@ export default {
     async performRemove(id) {
       try {
         await axios.delete(`/api/elements/${id}/force`);
-        await this.loadAllElementsForStats();
-        await this.loadElements();
+        
+        // Update local state instead of reloading
+        const elementIndex = this.elements.findIndex(e => e.id === id);
+        if (elementIndex !== -1) {
+          this.elements.splice(elementIndex, 1);
+        }
+        // Update in allElements for statistics
+        const allElementIndex = this.allElements.findIndex(e => e.id === id);
+        if (allElementIndex !== -1) {
+          this.allElements.splice(allElementIndex, 1);
+        }
       } catch (error) {
         console.error('Error removing element:', error);
         alert(this.t('failedRemove'));
@@ -580,9 +609,17 @@ export default {
         await axios.put(`/api/elements/${elementId}`, {
           parent_element_id: parentId
         });
-        // Reload elements to reflect the new hierarchy
-        await this.loadElements();
-        await this.loadAllElementsForStats();
+        
+        // Update local state instead of reloading
+        const elementIndex = this.elements.findIndex(e => e.id === elementId);
+        if (elementIndex !== -1) {
+          this.elements[elementIndex].parent_element_id = parentId;
+        }
+        // Update in allElements for statistics
+        const allElementIndex = this.allElements.findIndex(e => e.id === elementId);
+        if (allElementIndex !== -1) {
+          this.allElements[allElementIndex].parent_element_id = parentId;
+        }
       } catch (error) {
         console.error('Error setting parent element:', error);
         alert(this.t('failedUpdate'));
@@ -657,6 +694,54 @@ export default {
     findParentElementId(elementId) {
       const element = this.elements.find(e => e.id === elementId);
       return element ? element.parent_element_id : null;
+    },
+    
+    // Update element and all its descendants in local state
+    updateElementAndDescendants(elementId, updates) {
+      // Helper function to recursively update element and children
+      const updateRecursive = (id) => {
+        // Update in elements array
+        const elementIndex = this.elements.findIndex(e => e.id === id);
+        if (elementIndex !== -1) {
+          Object.assign(this.elements[elementIndex], updates);
+        }
+        
+        // Update in allElements array
+        const allElementIndex = this.allElements.findIndex(e => e.id === id);
+        if (allElementIndex !== -1) {
+          Object.assign(this.allElements[allElementIndex], updates);
+        }
+        
+        // Find and update all children
+        const children = this.elements.filter(e => e.parent_element_id === id);
+        children.forEach(child => {
+          updateRecursive(child.id);
+        });
+      };
+      
+      updateRecursive(elementId);
+    },
+    
+    // Remove element and all its descendants from the current view (elements array)
+    // but keep them in allElements for statistics
+    removeElementAndDescendantsFromView(elementId) {
+      // Helper function to recursively remove element and children from view
+      const removeRecursive = (id) => {
+        // Remove from elements array (current view)
+        const elementIndex = this.elements.findIndex(e => e.id === id);
+        if (elementIndex !== -1) {
+          this.elements.splice(elementIndex, 1);
+        }
+        
+        // Find and remove all children from view
+        // Note: we need to search in allElements to find all children, not just in elements
+        const children = this.allElements.filter(e => e.parent_element_id === id);
+        children.forEach(child => {
+          removeRecursive(child.id);
+        });
+      };
+      
+      removeRecursive(elementId);
     },
     
     formatDate(dateString) {
@@ -1074,8 +1159,26 @@ export default {
             return;
           }
           
-          // Update parent_element_id via API
-          this.setParentElement(draggedElement.id, parentElement.id);
+          // Update parent_element_id via API and update local state
+          try {
+            await axios.put(`/api/elements/${draggedElement.id}`, {
+              parent_element_id: parentElement.id
+            });
+            
+            // Update local state instead of reloading
+            const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
+            if (elementIndex !== -1) {
+              this.elements[elementIndex].parent_element_id = parentElement.id;
+              // Update in allElements for statistics
+              const allElementIndex = this.allElements.findIndex(e => e.id === draggedElement.id);
+              if (allElementIndex !== -1) {
+                this.allElements[allElementIndex].parent_element_id = parentElement.id;
+              }
+            }
+          } catch (error) {
+            console.error('Error setting parent element:', error);
+            alert(this.t('failedUpdate'));
+          }
           this.dragOverIndex = null;
           return;
         }
@@ -1115,11 +1218,27 @@ export default {
       // Determine the new parent based on drop position
       const newParentId = this.determineParentFromDropPosition(actualDropIndex);
       
-      // If parent changed, update it via API
+      // If parent changed, update it via API and update local state
       if (originalElement.parent_element_id !== newParentId) {
-        this.setParentElement(originalElement.id, newParentId);
-        // Reload elements to reflect the new hierarchy
-        await this.loadElements();
+        try {
+          await axios.put(`/api/elements/${originalElement.id}`, {
+            parent_element_id: newParentId
+          });
+          
+          // Update local state instead of reloading
+          const elementIndex = this.elements.findIndex(e => e.id === originalElement.id);
+          if (elementIndex !== -1) {
+            this.elements[elementIndex].parent_element_id = newParentId;
+            // Update in allElements for statistics
+            const allElementIndex = this.allElements.findIndex(e => e.id === originalElement.id);
+            if (allElementIndex !== -1) {
+              this.allElements[allElementIndex].parent_element_id = newParentId;
+            }
+          }
+        } catch (error) {
+          console.error('Error setting parent element:', error);
+          alert(this.t('failedUpdate'));
+        }
         this.dragOverIndex = null;
         return;
       }
@@ -1237,8 +1356,26 @@ export default {
           return;
         }
         
-        // Update parent_element_id via API
-        this.setParentElement(draggedElement.id, parentElement.id);
+        // Update parent_element_id via API and update local state
+        try {
+          await axios.put(`/api/elements/${draggedElement.id}`, {
+            parent_element_id: parentElement.id
+          });
+          
+          // Update local state instead of reloading
+          const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
+          if (elementIndex !== -1) {
+            this.elements[elementIndex].parent_element_id = parentElement.id;
+            // Update in allElements for statistics
+            const allElementIndex = this.allElements.findIndex(e => e.id === draggedElement.id);
+            if (allElementIndex !== -1) {
+              this.allElements[allElementIndex].parent_element_id = parentElement.id;
+            }
+          }
+        } catch (error) {
+          console.error('Error setting parent element:', error);
+          alert(this.t('failedUpdate'));
+        }
         this.dragOverIndex = null;
         return;
       }
