@@ -146,9 +146,8 @@
         <div class="space-y-4">
           <div class="flex items-center mb-4 relative">
             <h2 class="text-xl font-semibold">{{ t('yourElements') }}</h2>
-            <!-- Round Add Button (only show for active or both view) - centered -->
+            <!-- Round Add Button - always visible -->
             <button
-              v-if="viewMode === 'active' || viewMode === 'both'"
               @click="showAddModal = true"
               class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all duration-300 ease-in-out hover:scale-110 flex items-center justify-center z-10"
               title="Add New Element"
