@@ -34,5 +34,21 @@ export default {
   language: 'Язык',
   english: 'Английский',
   russian: 'Русский',
-  optional: 'необязательно'
+  optional: 'необязательно',
+  register: 'Регистрация',
+  login: 'Вход',
+  logout: 'Выход',
+  name: 'Имя',
+  email: 'Почта',
+  password: 'Пароль',
+  passwordConfirmation: 'Подтвердите пароль',
+  alreadyHaveAccount: 'Уже есть аккаунт?',
+  dontHaveAccount: 'Нет аккаунта?',
+  registerHere: 'Зарегистрируйтесь здесь',
+  loginHere: 'Войдите здесь',
+  failedRegister: 'Не удалось зарегистрироваться',
+  failedLogin: 'Не удалось войти',
+  failedLogout: 'Не удалось выйти',
+  welcome: 'Добро пожаловать',
+  loggedInAs: 'Вы вошли как'
 };

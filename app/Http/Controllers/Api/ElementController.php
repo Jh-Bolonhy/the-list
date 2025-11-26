@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Element;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 
 class ElementController extends Controller
 {
@@ -14,7 +15,7 @@ class ElementController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Element::query();
+        $query = Element::query()->where('user_id', Auth::id());
         
         // Filter by archived status if provided
         if ($request->has('archived')) {
@@ -38,7 +39,10 @@ class ElementController extends Controller
             'completed' => 'boolean'
         ]);
 
-        $element = Element::create($request->all());
+        $element = Element::create([
+            ...$request->all(),
+            'user_id' => Auth::id()
+        ]);
         return response()->json($element, 201);
     }
 
@@ -47,7 +51,7 @@ class ElementController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $element = Element::findOrFail($id);
+        $element = Element::where('user_id', Auth::id())->findOrFail($id);
         return response()->json($element);
     }
 
@@ -63,11 +67,20 @@ class ElementController extends Controller
             'parent_element_id' => 'nullable|exists:elements,id'
         ]);
 
-        $element = Element::findOrFail($id);
+        $element = Element::where('user_id', Auth::id())->findOrFail($id);
         
         // Prevent element from being its own parent
         if ($request->has('parent_element_id') && $request->input('parent_element_id') == $id) {
             return response()->json(['error' => 'Element cannot be its own parent'], 400);
+        }
+        
+        // Ensure parent_element_id belongs to the same user if provided
+        if ($request->has('parent_element_id') && $request->input('parent_element_id')) {
+            $parent = Element::where('user_id', Auth::id())
+                ->find($request->input('parent_element_id'));
+            if (!$parent) {
+                return response()->json(['error' => 'Parent element not found or does not belong to you'], 400);
+            }
         }
         
         $element->update($request->all());
@@ -79,7 +92,7 @@ class ElementController extends Controller
      */
     public function archive(string $id): JsonResponse
     {
-        $element = Element::findOrFail($id);
+        $element = Element::where('user_id', Auth::id())->findOrFail($id);
         $element->archiveWithDescendants();
         return response()->json(['message' => 'Element and all descendants archived successfully'], 200);
     }
@@ -89,7 +102,7 @@ class ElementController extends Controller
      */
     public function restore(string $id): JsonResponse
     {
-        $element = Element::findOrFail($id);
+        $element = Element::where('user_id', Auth::id())->findOrFail($id);
         
         if (!$element->archived) {
             return response()->json(['message' => 'Element is not archived'], 400);
@@ -104,7 +117,7 @@ class ElementController extends Controller
      */
     public function forceDelete(string $id): JsonResponse
     {
-        $element = Element::findOrFail($id);
+        $element = Element::where('user_id', Auth::id())->findOrFail($id);
         
         if (!$element->archived) {
             return response()->json(['message' => 'Element must be archived before permanent deletion'], 400);

@@ -34,5 +34,21 @@ export default {
   language: 'Language',
   english: 'English',
   russian: 'Russian',
-  optional: 'optional'
+  optional: 'optional',
+  register: 'Register',
+  login: 'Login',
+  logout: 'Logout',
+  name: 'Name',
+  email: 'Email',
+  password: 'Password',
+  passwordConfirmation: 'Confirm Password',
+  alreadyHaveAccount: 'Already have an account?',
+  dontHaveAccount: "Don't have an account?",
+  registerHere: 'Register here',
+  loginHere: 'Login here',
+  failedRegister: 'Failed to register',
+  failedLogin: 'Failed to login',
+  failedLogout: 'Failed to logout',
+  welcome: 'Welcome',
+  loggedInAs: 'Logged in as'
 };

@@ -9,6 +9,7 @@ class Element extends Model
     protected $table = 'elements';
 
     protected $fillable = [
+        'user_id',
         'parent_element_id',
         'title',
         'description',
@@ -51,8 +52,10 @@ class Element extends Model
      */
     public function archiveWithDescendants()
     {
-        // Get all children
-        $children = Element::where('parent_element_id', $this->id)->get();
+        // Get all children of the same user
+        $children = Element::where('parent_element_id', $this->id)
+            ->where('user_id', $this->user_id)
+            ->get();
         
         // Archive all descendants first (recursive)
         foreach ($children as $child) {
@@ -73,8 +76,10 @@ class Element extends Model
         // Restore this element first
         $this->update(['archived' => false]);
         
-        // Get all descendants and restore them recursively
-        $descendants = Element::where('parent_element_id', $this->id)->get();
+        // Get all descendants of the same user and restore them recursively
+        $descendants = Element::where('parent_element_id', $this->id)
+            ->where('user_id', $this->user_id)
+            ->get();
         foreach ($descendants as $child) {
             if ($child->archived) {
                 $child->restoreWithDescendants();
