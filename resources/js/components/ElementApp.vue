@@ -623,8 +623,10 @@ export default {
           this.updateCsrfToken(response.data.csrf_token);
         }
         
+        // Reset to login page
         this.user = null;
         this.elements = [];
+        this.showRegisterForm = false; // Always show login form after logout
       } catch (error) {
         console.error('Error logging out:', error);
         alert(this.t('failedLogout'));
