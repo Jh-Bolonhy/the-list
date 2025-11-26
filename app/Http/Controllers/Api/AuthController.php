@@ -30,6 +30,7 @@ class AuthController extends Controller
         ]);
 
         Auth::login($user);
+        $request->session()->regenerate();
 
         return response()->json([
             'message' => 'User registered successfully',
@@ -37,7 +38,8 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-            ]
+            ],
+            'csrf_token' => csrf_token()
         ], 201);
     }
 
@@ -60,7 +62,8 @@ class AuthController extends Controller
                     'id' => Auth::id(),
                     'name' => Auth::user()->name,
                     'email' => Auth::user()->email,
-                ]
+                ],
+                'csrf_token' => csrf_token()
             ]);
         }
 
@@ -79,7 +82,8 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->json([
-            'message' => 'Logout successful'
+            'message' => 'Logout successful',
+            'csrf_token' => csrf_token()
         ]);
     }
 
@@ -88,18 +92,31 @@ class AuthController extends Controller
      */
     public function user(Request $request): JsonResponse
     {
+        $response = [];
+        
         if (Auth::check()) {
-            return response()->json([
-                'user' => [
-                    'id' => Auth::id(),
-                    'name' => Auth::user()->name,
-                    'email' => Auth::user()->email,
-                ]
-            ]);
+            $response['user'] = [
+                'id' => Auth::id(),
+                'name' => Auth::user()->name,
+                'email' => Auth::user()->email,
+            ];
+        } else {
+            $response['user'] = null;
         }
-
+        
+        // Always include CSRF token
+        $response['csrf_token'] = csrf_token();
+        
+        return response()->json($response);
+    }
+    
+    /**
+     * Get CSRF token
+     */
+    public function csrfToken(): JsonResponse
+    {
         return response()->json([
-            'user' => null
+            'csrf_token' => csrf_token()
         ]);
     }
 }

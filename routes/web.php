@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 
 // API Routes - Authentication
 Route::prefix('api')->group(function () {
+    Route::get('csrf-token', [AuthController::class, 'csrfToken'])->name('auth.csrf-token');
     Route::post('register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('login', [AuthController::class, 'login'])->name('auth.login');
     Route::post('logout', [AuthController::class, 'logout'])->name('auth.logout')->middleware('auth');

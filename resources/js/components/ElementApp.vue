@@ -538,6 +538,15 @@ export default {
     setLang(newLang) {
       this.lang = newLang;
     },
+    updateCsrfToken(token) {
+      // Update meta tag
+      const metaTag = document.head.querySelector('meta[name="csrf-token"]');
+      if (metaTag) {
+        metaTag.setAttribute('content', token);
+      }
+      // Update axios default header
+      window.axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+    },
     async checkAuth() {
       try {
         const response = await axios.get('/api/user');
@@ -556,6 +565,12 @@ export default {
       try {
         const response = await axios.post('/api/register', this.registerForm);
         this.user = response.data.user;
+        
+        // Update CSRF token if provided
+        if (response.data.csrf_token) {
+          this.updateCsrfToken(response.data.csrf_token);
+        }
+        
         this.registerForm = {
           name: '',
           email: '',
@@ -578,6 +593,12 @@ export default {
       try {
         const response = await axios.post('/api/login', this.loginForm);
         this.user = response.data.user;
+        
+        // Update CSRF token if provided
+        if (response.data.csrf_token) {
+          this.updateCsrfToken(response.data.csrf_token);
+        }
+        
         this.loginForm = {
           email: '',
           password: ''
@@ -596,7 +617,13 @@ export default {
     },
     async handleLogout() {
       try {
-        await axios.post('/api/logout');
+        const response = await axios.post('/api/logout');
+        
+        // Update CSRF token if provided
+        if (response.data.csrf_token) {
+          this.updateCsrfToken(response.data.csrf_token);
+        }
+        
         this.user = null;
         this.elements = [];
       } catch (error) {
