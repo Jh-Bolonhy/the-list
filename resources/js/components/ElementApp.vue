@@ -119,7 +119,7 @@
             <!-- Editable headline -->
             <h1 
               v-if="!isEditingHeadline && user"
-              @click="startEditingHeadline"
+              @click="startEditingHeadline($event)"
               class="text-3xl font-bold text-gray-800 cursor-pointer hover:text-gray-600 transition-colors"
               :title="t('clickToEdit')"
             >
@@ -140,6 +140,7 @@
               @keyup.esc="cancelEditingHeadline"
               type="text"
               ref="headlineInput"
+              :style="headlineInputWidth ? { width: headlineInputWidth + 'px', maxWidth: maxHeadlineWidth + 'px' } : { maxWidth: maxHeadlineWidth + 'px' }"
               class="text-3xl font-bold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600"
             />
             
@@ -500,6 +501,8 @@ export default {
       headline: '', // Headline for display (max width: 1/3 of row)
       isEditingHeadline: false, // Whether headline is being edited
       maxHeadlineWidth: 0, // Maximum allowed width for headline (1/3 of row width)
+      pendingCursorPosition: undefined, // Cursor position to set after input is rendered
+      headlineInputWidth: null, // Fixed width for input to prevent layout shift
       showRegisterForm: false, // Show register form instead of login
       loginForm: {
         email: '',
@@ -666,10 +669,43 @@ export default {
         this.headline = trimmedText;
       }
     },
-    startEditingHeadline() {
+    startEditingHeadline(event) {
       if (!this.user) {
         return;
       }
+      
+      // Store click position and get h1 element info BEFORE switching to input
+      const clickX = event.clientX;
+      const h1Element = event.currentTarget;
+      const h1Rect = h1Element.getBoundingClientRect();
+      const relativeX = clickX - h1Rect.left;
+      const headlineText = this.getHeaderDisplay();
+      
+      // Store the width of h1 to keep input the same width
+      this.headlineInputWidth = h1Rect.width;
+      
+      // Get the computed font style from h1 element (before it disappears)
+      const h1Style = window.getComputedStyle(h1Element);
+      const font = `${h1Style.fontWeight} ${h1Style.fontSize} ${h1Style.fontFamily}`;
+      
+      // Find the character position at the click location using h1 styles
+      let cursorPosition = headlineText.length; // Default to end
+      let currentWidth = 0;
+      
+      for (let i = 0; i < headlineText.length; i++) {
+        const charWidth = this.measureTextWidth(headlineText[i], font);
+        // Check if click is before the middle of this character
+        if (currentWidth + charWidth / 2 > relativeX) {
+          cursorPosition = i;
+          break;
+        }
+        currentWidth += charWidth;
+        cursorPosition = i + 1;
+      }
+      
+      // Store cursor position for use after input is rendered
+      this.pendingCursorPosition = cursorPosition;
+      
       this.isEditingHeadline = true;
       // Focus the input in the next tick to ensure it's rendered
       this.$nextTick(() => {
@@ -680,8 +716,14 @@ export default {
             const rowWidth = this.$refs.headerRow.offsetWidth;
             this.maxHeadlineWidth = rowWidth / 3;
           }
+          
           input.focus();
-          input.select(); // Select all text for easy editing
+          // Set cursor position without selecting text
+          if (this.pendingCursorPosition !== undefined) {
+            const pos = Math.min(this.pendingCursorPosition, this.headline.length);
+            input.setSelectionRange(pos, pos);
+            this.pendingCursorPosition = undefined;
+          }
         }
       });
     },
@@ -698,6 +740,7 @@ export default {
       
       // Stop editing
       this.isEditingHeadline = false;
+      this.headlineInputWidth = null; // Reset width
     },
     cancelEditingHeadline() {
       if (!this.user) {
@@ -710,6 +753,7 @@ export default {
       
       // Stop editing
       this.isEditingHeadline = false;
+      this.headlineInputWidth = null; // Reset width
     },
     async updateHeadline() {
       if (!this.user) {
