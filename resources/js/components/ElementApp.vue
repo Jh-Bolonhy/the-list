@@ -2,237 +2,44 @@
   <div class="min-h-screen bg-gray-100 py-8">
     <div class="max-w-4xl mx-auto px-4">
       <!-- Authentication Forms -->
-      <div v-if="!user" class="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <!-- Login Form -->
-        <div v-if="!showRegisterForm">
-          <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">{{ t('login') }}</h2>
-          <form @submit.prevent="handleLogin" class="space-y-4">
-            <div>
-              <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">{{ t('email') }}</label>
-              <input
-                v-model="loginForm.email"
-                type="email"
-                id="login-email"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('email')"
-                required
-              />
-            </div>
-            <div>
-              <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">{{ t('password') }}</label>
-              <input
-                v-model="loginForm.password"
-                type="password"
-                id="login-password"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('password')"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
-            >
-              {{ t('login') }}
-            </button>
-            <p class="text-center text-sm text-gray-600">
-              {{ t('dontHaveAccount') }} 
-              <button type="button" @click="showRegisterForm = true" class="text-blue-500 hover:underline">
-                {{ t('registerHere') }}
-              </button>
-            </p>
-          </form>
-        </div>
-
-        <!-- Register Form -->
-        <div v-else>
-          <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">{{ t('register') }}</h2>
-          <form @submit.prevent="handleRegister" class="space-y-4">
-            <div>
-              <label for="register-name" class="block text-sm font-medium text-gray-700 mb-1">{{ t('name') }}</label>
-              <input
-                v-model="registerForm.name"
-                type="text"
-                id="register-name"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('name')"
-                required
-              />
-            </div>
-            <div>
-              <label for="register-email" class="block text-sm font-medium text-gray-700 mb-1">{{ t('email') }}</label>
-              <input
-                v-model="registerForm.email"
-                type="email"
-                id="register-email"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('email')"
-                required
-              />
-            </div>
-            <div>
-              <label for="register-password" class="block text-sm font-medium text-gray-700 mb-1">{{ t('password') }}</label>
-              <input
-                v-model="registerForm.password"
-                type="password"
-                id="register-password"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('password')"
-                required
-                minlength="8"
-              />
-            </div>
-            <div>
-              <label for="register-password-confirmation" class="block text-sm font-medium text-gray-700 mb-1">{{ t('passwordConfirmation') }}</label>
-              <input
-                v-model="registerForm.password_confirmation"
-                type="password"
-                id="register-password-confirmation"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                :placeholder="t('passwordConfirmation')"
-                required
-                minlength="8"
-              />
-            </div>
-            <button
-              type="submit"
-              class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
-            >
-              {{ t('register') }}
-            </button>
-            <p class="text-center text-sm text-gray-600">
-              {{ t('alreadyHaveAccount') }} 
-              <button type="button" @click="showRegisterForm = false" class="text-blue-500 hover:underline">
-                {{ t('loginHere') }}
-              </button>
-            </p>
-          </form>
-        </div>
-      </div>
+      <AuthForms
+        v-if="!user"
+        :show-register-form="showRegisterForm"
+        :login-form="loginForm"
+        :register-form="registerForm"
+        :t="t"
+        @login="handleLogin"
+        @register="handleRegister"
+        @show-register="showRegisterForm = true"
+        @show-login="showRegisterForm = false"
+      />
 
       <!-- Main App Content (only shown when authenticated) -->
       <div v-if="user" class="bg-white rounded-lg shadow-lg p-6">
-        <!-- Header: All elements in one row -->
-        <div class="mb-8 flex items-center relative" ref="headerRow">
-          <!-- Left section: 'The List of [username]' title + Settings Menu Icon -->
-          <div class="flex items-center gap-4 flex-1 justify-start">
-            <!-- Editable headline -->
-            <h1 
-              v-if="!isEditingHeadline && user"
-              @click="startEditingHeadline($event)"
-              class="text-3xl font-bold text-gray-800 cursor-pointer hover:text-black transition-colors"
-              :title="t('clickToEdit')"
-            >
-              {{ getHeaderDisplay() }}
-            </h1>
-            <h1 
-              v-else-if="!user"
-              class="text-3xl font-bold text-gray-800"
-            >
-              {{ getHeaderDisplay() }}
-            </h1>
-            <input
-              v-else
-              v-model="headline"
-              @input="checkHeadlineWidth"
-              @blur="finishEditingHeadline"
-              @keyup.enter="finishEditingHeadline"
-              @keyup.esc="cancelEditingHeadline"
-              type="text"
-              ref="headlineInput"
-              :style="initialHeadlineWidth ? { width: initialHeadlineWidth + 'px', minWidth: initialHeadlineWidth + 'px', maxWidth: maxHeadlineWidth + 'px' } : { maxWidth: maxHeadlineWidth + 'px' }"
-              class="text-3xl font-bold text-gray-800 bg-transparent border-b-4 border-gray-100 focus:outline-none focus:border-gray-200"
-            />
-            
-            <!-- Settings Menu Icon -->
-            <div class="relative">
-              <button
-                @click="showSettingsMenu = !showSettingsMenu"
-                class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-all duration-300 ease-in-out"
-                :title="t('settings')"
-              >
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
-              </button>
-              <!-- Dropdown Menu -->
-              <transition name="fade">
-                <div
-                  v-if="showSettingsMenu"
-                  class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200"
-                  @click.stop
-                >
-                  <div class="py-1">
-                    <!-- Language Selector -->
-                    <div class="px-4 py-2 border-b border-gray-200 flex items-center justify-between gap-2">
-                      <label class="text-sm font-medium text-gray-700">{{ t('language') }}</label>
-                      <select
-                        v-model="lang"
-                        @change="setLang(lang); showSettingsMenu = false"
-                        class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      >
-                        <option value="en">{{ t('english') }}</option>
-                        <option value="ru">{{ t('russian') }}</option>
-                      </select>
-                    </div>
-                    <button
-                      @click="showSettingsMenu = false; handleLogout()"
-                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-all duration-300 ease-in-out bg-gray-50"
-                    >
-                      {{ t('logout') }}
-                    </button>
-                  </div>
-                </div>
-              </transition>
-            </div>
-          </div>
-          
-          <!-- Center: Round Add Button (absolutely centered) -->
-          <button
-            @click="showAddModal = true"
-            class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all duration-300 ease-in-out hover:scale-110 flex items-center justify-center z-10"
-            title="Add New Element"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
-            </svg>
-          </button>
-          
-          <!-- Right section: Show dropdown + Statistics -->
-          <div class="flex items-center gap-4 flex-1 justify-end">
-            <!-- Show dropdown -->
-            <div class="flex items-center gap-2">
-              <label for="viewMode" class="text-sm font-medium text-gray-700">{{ t('show') }}:</label>
-              <select
-                id="viewMode"
-                v-model="viewMode"
-                @change="loadElements"
-                class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
-              >
-                <option value="active">{{ t('active') }}</option>
-                <option value="archived">{{ t('archived') }}</option>
-                <option value="both">{{ t('both') }}</option>
-              </select>
-            </div>
-            
-            <!-- Statistics -->
-            <div class="flex items-center">
-              <!-- Active elements box -->
-              <div class="px-3 py-1.5 bg-gray-50 rounded-lg text-sm text-gray-800 flex items-center gap-3 border border-gray-300">
-                <span>{{ activeCount }}</span>
-                <span class="text-gray-500">
-                  (<span class="line-through">{{ activeCompletedCount }}</span>)
-                </span>
-              </div>
-              <!-- Separator -->
-              <span class="text-gray-600 font-bold text-lg mx-2">/</span>
-              <!-- Archived elements box -->
-              <div class="px-3 py-1.5 bg-gray-200 rounded-lg text-sm text-gray-800 border border-gray-300">
-                {{ archivedCount }}
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- Header -->
+        <AppHeader
+          :user="user"
+          v-model:headline="headline"
+          :headline-display="getHeaderDisplay()"
+          :is-editing-headline="isEditingHeadline"
+          :initial-headline-width="initialHeadlineWidth"
+          :max-headline-width="maxHeadlineWidth"
+          :view-mode="viewMode"
+          :active-count="activeCount"
+          :active-completed-count="activeCompletedCount"
+          :archived-count="archivedCount"
+          :lang="lang"
+          :t="t"
+          ref="headerRow"
+          @start-editing="startEditingHeadline"
+          @headline-input="checkHeadlineWidth"
+          @finish-editing="finishEditingHeadline"
+          @cancel-editing="cancelEditingHeadline"
+          @show-add-modal="showAddModal = true"
+          @view-mode-change="viewMode = $event; loadElements()"
+          @lang-change="setLang($event)"
+          @logout="handleLogout"
+        />
 
         <!-- Element List -->
         <div class="space-y-4">
@@ -255,132 +62,30 @@
             @drop.prevent="handleGlobalDrop"
           >
             <template v-for="(element, index) in hierarchicalElements" :key="element.id">
-              <div
-                :draggable="true"
-                :data-element-id="element.id"
-                @dragstart="handleDragStart($event, index)"
-                @dragover.prevent="handleDragOver($event, index)"
-                @dragleave="handleDragLeave"
-                @drop="handleDrop($event, index)"
-                @dragend="handleDragEnd"
-                :style="{
-                  marginLeft: element.level > 0 ? `${element.level * 20}px` : '0',
-                  marginTop: `-${(1 - Math.pow(0.8, element.level + 1)) * 0.75}rem`
-                }"
-                :class="[
-                  getElementClasses(index),
-                  'flex items-center p-4 rounded-lg transition-all duration-300 ease-in-out border border-gray-300 cursor-move',
-                  element.archived 
-                    ? 'bg-gray-200 hover:bg-gray-300' 
-                    : 'bg-gray-50 hover:bg-gray-100',
-                  draggingIndex === index 
-                    ? 'shadow-2xl z-50 scale-[0.98]' 
-                    : draggingIndex !== null 
-                      ? 'opacity-90' 
-                      : '',
-                  dragOverIndex === index && draggingIndex !== null && draggingIndex !== index ? 'mt-1' : '',
-                  dragOverIndex === index + 1 && draggingIndex !== null && draggingIndex !== index ? 'mb-1' : '',
-                  // Visual effects for middle third hover - increase size and add shadow
-                  hoverElementIndex === index && hoverElementPart === 'middle' && draggingIndex !== null && draggingIndex !== index
-                    ? 'shadow-lg scale-[1.02]' 
-                    : ''
-                ]"
-              >
-              <!-- Checkbox -->
-              <input
-                type="checkbox"
-                :checked="element.completed"
-                @change="toggleElement(element)"
-                class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-4"
+              <ElementItem
+                :element="element"
+                :index="index"
+                :editing-element="editingElement"
+                :dragging-index="draggingIndex"
+                :drag-over-index="dragOverIndex"
+                :hover-element-index="hoverElementIndex"
+                :hover-element-part="hoverElementPart"
+                :element-classes="getElementClasses(index)"
+                :t="t"
+                :format-date="formatDate"
+                @drag-start="handleDragStart"
+                @drag-over="handleDragOver"
+                @drag-leave="handleDragLeave"
+                @drop="handleDrop"
+                @drag-end="handleDragEnd"
+                @toggle="toggleElement"
+                @start-edit="startEdit"
+                @save-edit="saveEdit"
+                @cancel-edit="cancelEdit"
+                @archive="archiveElement"
+                @restore="restoreElement"
+                @remove="removeElement"
               />
-              
-              <!-- Element Content -->
-              <div class="flex-1">
-                <div v-if="editingElement?.id === element.id" class="space-y-2">
-                  <input
-                    v-model="editingElement.title"
-                    type="text"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <textarea
-                    v-model="editingElement.description"
-                    rows="2"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  ></textarea>
-                  <div class="flex space-x-2">
-                    <button
-                      @click="saveEdit"
-                      class="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm transition-all duration-300 ease-in-out"
-                    >
-                      {{ t('save') }}
-                    </button>
-                    <button
-                      @click="cancelEdit"
-                      class="px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm transition-all duration-300 ease-in-out"
-                    >
-                      {{ t('cancel') }}
-                    </button>
-                  </div>
-                </div>
-                <div v-else>
-                  <h3 
-                    :class="[
-                      'text-lg font-medium',
-                      element.completed ? 'line-through text-gray-500' : 'text-gray-800'
-                    ]"
-                  >
-                    {{ element.title }}
-                  </h3>
-                  <p 
-                    v-if="element.description"
-                    :class="[
-                      'text-gray-600 mt-1',
-                      element.completed ? 'line-through' : ''
-                    ]"
-                  >
-                    {{ element.description }}
-                  </p>
-                  <p class="text-xs text-gray-400 mt-2">
-                    {{ t('created') }}: {{ formatDate(element.created_at) }}
-                  </p>
-                </div>
-              </div>
-              
-              <!-- Actions -->
-              <div v-if="editingElement?.id !== element.id" class="flex space-x-2 ml-4">
-                <!-- Actions for active (non-archived) elements -->
-                <template v-if="!element.archived">
-                  <button
-                    @click="startEdit(element)"
-                    class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm transition-all duration-300 ease-in-out"
-                  >
-                    {{ t('edit') }}
-                  </button>
-                  <button
-                    @click="archiveElement(element.id)"
-                    class="px-3 py-1 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium transition-all duration-300 ease-in-out"
-                  >
-                    {{ t('archive') }}
-                  </button>
-                </template>
-                <!-- Actions for archived elements -->
-                <template v-else>
-                  <button
-                    @click="restoreElement(element.id)"
-                    class="px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm transition-all duration-300 ease-in-out"
-                  >
-                    {{ t('restore') }}
-                  </button>
-                  <button
-                    @click="removeElement(element.id)"
-                    class="px-3 py-1 bg-pink-600 text-white rounded-md hover:bg-pink-700 text-sm transition-all duration-300 ease-in-out"
-                  >
-                    {{ t('remove') }}
-                  </button>
-                </template>
-              </div>
-            </div>
-            
             </template>
           </transition-group>
         </div>
@@ -388,101 +93,21 @@
     </div>
 
     <!-- Add Element Modal -->
-    <transition name="modal-fade">
-      <div
-        v-if="showAddModal"
-        class="fixed inset-0 bg-gray-900/70 flex items-center justify-center z-50 transition-opacity duration-300 ease-in-out"
-        @click.self="closeAddModal"
-      >
-        <transition name="modal-scale">
-          <div v-if="showAddModal" class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4 transition-all duration-300 ease-in-out" @click.stop>
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold">{{ t('addNewElement') }}</h2>
-          <button
-            @click="closeAddModal"
-            class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-300 ease-in-out p-0 m-0"
-            aria-label="Close"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <form @submit.prevent="handleAddElement" class="space-y-4">
-          <div>
-            <label for="modal-title" class="block text-sm font-medium text-gray-700 mb-1">{{ t('title') }}</label>
-            <input
-              v-model="newElement.title"
-              type="text"
-              id="modal-title"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :placeholder="t('title')"
-              required
-              ref="titleInput"
-            />
-          </div>
-          <div>
-            <label for="modal-description" class="block text-sm font-medium text-gray-700 mb-1">{{ t('description') }}</label>
-            <textarea
-              v-model="newElement.description"
-              id="modal-description"
-              rows="3"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              :placeholder="t('description') + ' (' + t('optional') + ')'"
-            ></textarea>
-          </div>
-          <div class="flex space-x-3">
-            <button
-              type="submit"
-              class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
-            >
-              {{ t('add') }}
-            </button>
-            <button
-              type="button"
-              @click="closeAddModal"
-              class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-300 ease-in-out"
-            >
-              {{ t('cancel') }}
-            </button>
-          </div>
-        </form>
-          </div>
-        </transition>
-      </div>
-    </transition>
+    <AddElementModal
+      :show="showAddModal"
+      :t="t"
+      @close="closeAddModal"
+      @submit="handleAddElement"
+    />
 
     <!-- Confirmation Modal -->
-    <transition name="modal-fade">
-      <div
-        v-if="showConfirmModal"
-        class="fixed inset-0 bg-gray-900/70 flex items-center justify-center z-50 transition-opacity duration-300 ease-in-out"
-        @click.self="closeConfirmModal"
-      >
-        <transition name="modal-scale">
-          <div
-            class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 transform transition-all duration-300 ease-in-out"
-          >
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">{{ t('confirm') }}</h3>
-            <p class="text-gray-600 mb-6">{{ confirmMessage }}</p>
-            <div class="flex space-x-3">
-              <button
-                @click="handleConfirm"
-                class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out"
-              >
-                {{ t('confirm') }}
-              </button>
-              <button
-                @click="closeConfirmModal"
-                class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-300 ease-in-out"
-              >
-                {{ t('cancel') }}
-              </button>
-            </div>
-          </div>
-        </transition>
-      </div>
-    </transition>
+    <ConfirmModal
+      :show="showConfirmModal"
+      :message="confirmMessage"
+      :t="t"
+      @close="closeConfirmModal"
+      @confirm="handleConfirm"
+    />
   </div>
 </template>
 
@@ -492,9 +117,21 @@ import en from '../lang/en.js';
 import ru from '../lang/ru.js';
 const locales = { en, ru };
 
+import AuthForms from './auth/AuthForms.vue';
+import AppHeader from './AppHeader.vue';
+import AddElementModal from './modals/AddElementModal.vue';
+import ConfirmModal from './modals/ConfirmModal.vue';
+import ElementItem from './elements/ElementItem.vue';
+
 export default {
   name: 'ElementApp',
-  components: {},
+  components: {
+    AuthForms,
+    AppHeader,
+    AddElementModal,
+    ConfirmModal,
+    ElementItem
+  },
   data() {
     return {
       user: null, // Current authenticated user
@@ -629,8 +266,9 @@ export default {
       return this.t('defaultHeader');
     },
     updateMaxHeadlineWidth() {
-      if (this.$refs.headerRow) {
-        const rowWidth = this.$refs.headerRow.offsetWidth;
+      const headerRow = this.$refs.headerRow?.$el || this.$refs.headerRow;
+      if (headerRow) {
+        const rowWidth = headerRow.offsetWidth;
         this.maxHeadlineWidth = rowWidth / 3;
       }
     },
@@ -642,18 +280,23 @@ export default {
       return context.measureText(text).width;
     },
     checkHeadlineWidth() {
-      if (!this.$refs.headerRow || !this.$refs.headlineInput) {
+      const headerRow = this.$refs.headerRow?.$el || this.$refs.headerRow;
+      if (!headerRow) {
         return;
       }
       
       // Get the row width and calculate 1/3
-      const rowWidth = this.$refs.headerRow.offsetWidth;
+      const rowWidth = headerRow.offsetWidth;
       const maxWidth = rowWidth / 3;
       this.maxHeadlineWidth = maxWidth;
       
-      // Get the computed font style from the input
-      const input = this.$refs.headlineInput;
-      const computedStyle = window.getComputedStyle(input);
+      // Get the computed font style from the input (try to get from AppHeader component)
+      const headlineInput = this.$refs.headerRow?.$refs?.headlineInputRef;
+      if (!headlineInput) {
+        return;
+      }
+      
+      const computedStyle = window.getComputedStyle(headlineInput);
       const font = `${computedStyle.fontWeight} ${computedStyle.fontSize} ${computedStyle.fontFamily}`;
       
       // Measure the current text width
@@ -714,11 +357,12 @@ export default {
       this.isEditingHeadline = true;
       // Focus the input in the next tick to ensure it's rendered
       this.$nextTick(() => {
-        const input = this.$refs.headlineInput;
+        const headerRow = this.$refs.headerRow?.$el || this.$refs.headerRow;
+        const input = this.$refs.headerRow?.$refs?.headlineInputRef;
         if (input) {
           // Calculate max width before focusing
-          if (this.$refs.headerRow) {
-            const rowWidth = this.$refs.headerRow.offsetWidth;
+          if (headerRow) {
+            const rowWidth = headerRow.offsetWidth;
             this.maxHeadlineWidth = rowWidth / 3;
           }
           
@@ -929,9 +573,9 @@ export default {
       this.newElement = { title: '', description: '' };
     },
     
-    async handleAddElement() {
+    async handleAddElement(newElementData) {
       try {
-        const response = await axios.post('/api/elements', this.newElement);
+        const response = await axios.post('/api/elements', newElementData);
         const newElement = response.data;
         
         // Add to elements array (filtering is handled by computed property)
