@@ -21,11 +21,18 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'locale' => 'nullable|string|in:en,ru', // Optional locale for headline generation
         ]);
+
+        // Generate default headline based on locale (default to English)
+        $locale = $request->input('locale', 'en');
+        $defaultHeadline = $locale === 'ru' 
+            ? "Список {$request->name}"
+            : "The {$request->name}'s List";
 
         $user = User::create([
             'name' => $request->name,
-            'header_name' => $request->name, // Initialize with name
+            'headline' => $defaultHeadline,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -38,7 +45,7 @@ class AuthController extends Controller
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
-                'header_name' => $user->header_name, // Always return header_name, even if null
+                'headline' => $user->headline, // Always return headline, even if null
                 'email' => $user->email,
             ],
             'csrf_token' => csrf_token()
@@ -50,29 +57,36 @@ class AuthController extends Controller
      */
     public function login(Request $request): JsonResponse
     {
-        $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
-
-        if (Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
-            $request->session()->regenerate();
-
-            return response()->json([
-                'message' => 'Login successful',
-                'user' => [
-                    'id' => Auth::id(),
-                    'name' => Auth::user()->name,
-                    'header_name' => Auth::user()->header_name, // Always return header_name, even if null
-                    'email' => Auth::user()->email,
-                ],
-                'csrf_token' => csrf_token()
+        try {
+            $validated = $request->validate([
+                'email' => 'required|string|email',
+                'password' => 'required|string',
             ]);
-        }
 
-        throw ValidationException::withMessages([
-            'email' => ['The provided credentials do not match our records.'],
-        ]);
+            if (Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+                $request->session()->regenerate();
+
+                return response()->json([
+                    'message' => 'Login successful',
+                    'user' => [
+                        'id' => Auth::id(),
+                        'name' => Auth::user()->name,
+                        'headline' => Auth::user()->headline, // Always return headline, even if null
+                        'email' => Auth::user()->email,
+                    ],
+                    'csrf_token' => csrf_token()
+                ]);
+            }
+
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials do not match our records.'],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        }
     }
 
     /**
@@ -101,7 +115,7 @@ class AuthController extends Controller
             $response['user'] = [
                 'id' => Auth::id(),
                 'name' => Auth::user()->name,
-                'header_name' => Auth::user()->header_name, // Always return header_name, even if null
+                'headline' => Auth::user()->headline, // Always return headline, even if null
                 'email' => Auth::user()->email,
             ];
         } else {
@@ -125,24 +139,24 @@ class AuthController extends Controller
     }
     
     /**
-     * Update header name for authenticated user
+     * Update headline for authenticated user
      */
-    public function updateHeaderName(Request $request): JsonResponse
+    public function updateHeadline(Request $request): JsonResponse
     {
         $request->validate([
-            'header_name' => 'nullable|string|max:255',
+            'headline' => 'nullable|string|max:17',
         ]);
 
         $user = Auth::user();
-        $user->header_name = $request->input('header_name');
+        $user->headline = $request->input('headline');
         $user->save();
 
         return response()->json([
-            'message' => 'Header name updated successfully',
+            'message' => 'Headline updated successfully',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
-                'header_name' => $user->header_name, // Always return header_name, even if null
+                'headline' => $user->headline, // Always return headline, even if null
                 'email' => $user->email,
             ]
         ]);

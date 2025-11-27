@@ -11,7 +11,7 @@ Route::prefix('api')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('auth.login');
     Route::post('logout', [AuthController::class, 'logout'])->name('auth.logout')->middleware('auth');
     Route::get('user', [AuthController::class, 'user'])->name('auth.user');
-    Route::put('user/header-name', [AuthController::class, 'updateHeaderName'])->name('auth.update-header-name')->middleware('auth');
+    Route::put('user/headline', [AuthController::class, 'updateHeadline'])->name('auth.update-headline')->middleware('auth');
     
     // Protected routes - require authentication
     Route::middleware('auth')->group(function () {

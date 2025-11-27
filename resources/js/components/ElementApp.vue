@@ -116,7 +116,7 @@
         <div class="mb-8 flex items-center relative">
           <!-- Left section: 'The List of [username]' title + Settings Menu Icon -->
           <div class="flex items-center gap-4 flex-1 justify-start">
-            <h1 class="text-3xl font-bold text-gray-800">{{ t('elementList') }}{{ user && headerName ? ' ' + headerName : '' }}</h1>
+            <h1 class="text-3xl font-bold text-gray-800">{{ getHeaderDisplay() }}</h1>
             
             <!-- Settings Menu Icon -->
             <div class="relative">
@@ -141,9 +141,10 @@
                     <div class="px-4 py-2 border-b border-gray-200">
                       <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('forHeader') }}</label>
                       <input
-                        v-model="headerName"
-                        @blur="updateHeaderName"
+                        v-model="headline"
+                        @blur="updateHeadline"
                         type="text"
+                        maxlength="17"
                         class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       />
                     </div>
@@ -482,7 +483,7 @@ export default {
   data() {
     return {
       user: null, // Current authenticated user
-      headerName: '', // Header name for display
+      headline: '', // Headline for display (max 17 characters)
       showRegisterForm: false, // Show register form instead of login
       loginForm: {
         email: '',
@@ -594,29 +595,50 @@ export default {
         this.showSettingsMenu = false;
       }
     },
-    async updateHeaderName() {
+    getHeaderDisplay() {
+      // If user is not logged in, show default
+      if (!this.user) {
+        return this.t('defaultHeader');
+      }
+      
+      // If headline is set and not empty, show it
+      if (this.headline && this.headline.trim() !== '') {
+        return this.headline;
+      }
+      
+      // Otherwise show default
+      return this.t('defaultHeader');
+    },
+    async updateHeadline() {
       if (!this.user) {
         return;
       }
       
+      // Trim to 17 characters if needed
+      if (this.headline.length > 17) {
+        this.headline = this.headline.substring(0, 17);
+      }
+      
       // Save current value before API call (in case of error)
-      const previousValue = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
+      const previousValue = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
       
       try {
-        const response = await axios.put('/api/user/header-name', {
-          header_name: this.headerName || null
+        const response = await axios.put('/api/user/headline', {
+          headline: this.headline || null
         });
         
-        // Update user object with new header_name from server
+        // Update user object with new headline from server
         if (response.data.user) {
-          this.user.header_name = response.data.user.header_name;
-          // Ensure headerName matches server value
-          this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
+          this.user.headline = response.data.user.headline;
+          // Ensure headline matches server value (trim to 17 chars)
+          const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
+          this.headline = rawHeadline.length > 17 ? rawHeadline.substring(0, 17) : rawHeadline;
         }
       } catch (error) {
-        console.error('Error updating header name:', error);
-        // Revert to original value on error
-        this.headerName = previousValue;
+        console.error('Error updating headline:', error);
+        // Revert to original value on error (trim to 17 chars)
+        const trimmedPrevious = previousValue.length > 17 ? previousValue.substring(0, 17) : previousValue;
+        this.headline = trimmedPrevious;
       }
     },
     updateCsrfToken(token) {
@@ -633,26 +655,33 @@ export default {
         const response = await axios.get('/api/user');
         this.user = response.data.user;
         if (this.user) {
-          // Initialize headerName from header_name (or empty string if null)
-          this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
+          // Initialize headline from headline (or empty string if null), trim to 17 chars
+          const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
+          this.headline = rawHeadline.length > 17 ? rawHeadline.substring(0, 17) : rawHeadline;
           await this.loadElements();
         } else {
-          this.headerName = '';
+          this.headline = '';
         }
       } catch (error) {
         console.error('Error checking auth:', error);
         this.user = null;
-        this.headerName = '';
+          this.headline = '';
       } finally {
         this.loading = false;
       }
     },
     async handleRegister() {
       try {
-        const response = await axios.post('/api/register', this.registerForm);
+        // Get current locale for headline generation
+        const locale = this.lang;
+        const response = await axios.post('/api/register', {
+          ...this.registerForm,
+          locale: locale
+        });
         this.user = response.data.user;
-        // Initialize headerName from header_name (or empty string if null)
-        this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
+        // Initialize headline from headline (or empty string if null), trim to 20 chars
+        const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
+        this.headline = rawHeadline.length > 20 ? rawHeadline.substring(0, 20) : rawHeadline;
         
         // Update CSRF token if provided
         if (response.data.csrf_token) {
@@ -681,8 +710,9 @@ export default {
       try {
         const response = await axios.post('/api/login', this.loginForm);
         this.user = response.data.user;
-        // Initialize headerName from header_name (or empty string if null)
-        this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
+        // Initialize headline from headline (or empty string if null), trim to 20 chars
+        const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
+        this.headline = rawHeadline.length > 20 ? rawHeadline.substring(0, 20) : rawHeadline;
         
         // Update CSRF token if provided
         if (response.data.csrf_token) {
@@ -696,10 +726,18 @@ export default {
         await this.loadElements();
       } catch (error) {
         console.error('Error logging in:', error);
-        if (error.response && error.response.data && error.response.data.errors) {
-          const errors = error.response.data.errors;
-          const errorMessages = Object.values(errors).flat().join(', ');
-          alert(errorMessages);
+        console.error('Error response:', error.response);
+        console.error('Error response data:', error.response?.data);
+        if (error.response && error.response.data) {
+          if (error.response.data.errors) {
+            const errors = error.response.data.errors;
+            const errorMessages = Object.values(errors).flat().join(', ');
+            alert(errorMessages);
+          } else if (error.response.data.message) {
+            alert(error.response.data.message);
+          } else {
+            alert(this.t('failedLogin') + ': ' + JSON.stringify(error.response.data));
+          }
         } else {
           alert(this.t('failedLogin'));
         }
@@ -716,7 +754,7 @@ export default {
         
         // Reset to login page
         this.user = null;
-        this.headerName = '';
+          this.headline = '';
         this.elements = [];
         this.showRegisterForm = false; // Always show login form after logout
       } catch (error) {
@@ -1694,6 +1732,12 @@ export default {
             input.focus();
           }
         });
+      }
+    },
+    headline(newVal) {
+      // Automatically trim to 17 characters if exceeded
+      if (newVal && newVal.length > 17) {
+        this.headline = newVal.substring(0, 17);
       }
     }
   },

@@ -48,5 +48,6 @@ export default {
   failedLogin: 'Не удалось войти',
   failedLogout: 'Не удалось выйти',
   settings: 'Настройки',
-  forHeader: 'В заголовке:'
+  forHeader: 'В заголовке:',
+  defaultHeader: 'Ваш Список'
 };

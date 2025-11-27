@@ -48,5 +48,6 @@ export default {
   failedLogin: 'Failed to login',
   failedLogout: 'Failed to logout',
   settings: 'Settings',
-  forHeader: 'For header:'
+  forHeader: 'For header:',
+  defaultHeader: 'Your List'
 };
