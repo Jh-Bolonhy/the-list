@@ -120,7 +120,7 @@
             <h1 
               v-if="!isEditingHeadline && user"
               @click="startEditingHeadline($event)"
-              class="text-3xl font-bold text-gray-800 cursor-pointer hover:text-gray-600 transition-colors"
+              class="text-3xl font-bold text-gray-800 cursor-pointer hover:text-black transition-colors"
               :title="t('clickToEdit')"
             >
               {{ getHeaderDisplay() }}
@@ -140,8 +140,8 @@
               @keyup.esc="cancelEditingHeadline"
               type="text"
               ref="headlineInput"
-              :style="headlineInputWidth ? { width: headlineInputWidth + 'px', maxWidth: maxHeadlineWidth + 'px' } : { maxWidth: maxHeadlineWidth + 'px' }"
-              class="text-3xl font-bold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600"
+              :style="initialHeadlineWidth ? { width: initialHeadlineWidth + 'px', minWidth: initialHeadlineWidth + 'px', maxWidth: maxHeadlineWidth + 'px' } : { maxWidth: maxHeadlineWidth + 'px' }"
+              class="text-3xl font-bold text-gray-800 bg-transparent border-b-4 border-gray-100 focus:outline-none focus:border-gray-200"
             />
             
             <!-- Settings Menu Icon -->
@@ -502,7 +502,7 @@ export default {
       isEditingHeadline: false, // Whether headline is being edited
       maxHeadlineWidth: 0, // Maximum allowed width for headline (1/3 of row width)
       pendingCursorPosition: undefined, // Cursor position to set after input is rendered
-      headlineInputWidth: null, // Fixed width for input to prevent layout shift
+      initialHeadlineWidth: null, // Initial width of input based on current text
       showRegisterForm: false, // Show register form instead of login
       loginForm: {
         email: '',
@@ -659,14 +659,18 @@ export default {
       // Measure the current text width
       const textWidth = this.measureTextWidth(this.headline, font);
       
-      // If text exceeds max width, trim it
+      // Update input width to match text width (but not exceed maxWidth)
       if (textWidth > maxWidth) {
-        // Find the maximum length that fits
+        // If text exceeds max width, trim it
         let trimmedText = this.headline;
         while (trimmedText.length > 0 && this.measureTextWidth(trimmedText, font) > maxWidth) {
           trimmedText = trimmedText.slice(0, -1);
         }
         this.headline = trimmedText;
+        this.initialHeadlineWidth = maxWidth;
+      } else {
+        // Update width to match current text width
+        this.initialHeadlineWidth = textWidth;
       }
     },
     startEditingHeadline(event) {
@@ -681,12 +685,13 @@ export default {
       const relativeX = clickX - h1Rect.left;
       const headlineText = this.getHeaderDisplay();
       
-      // Store the width of h1 to keep input the same width
-      this.headlineInputWidth = h1Rect.width;
-      
       // Get the computed font style from h1 element (before it disappears)
       const h1Style = window.getComputedStyle(h1Element);
       const font = `${h1Style.fontWeight} ${h1Style.fontSize} ${h1Style.fontFamily}`;
+      
+      // Calculate the width of the current text to set as initial input width
+      const textWidth = this.measureTextWidth(headlineText, font);
+      this.initialHeadlineWidth = textWidth;
       
       // Find the character position at the click location using h1 styles
       let cursorPosition = headlineText.length; // Default to end
@@ -740,7 +745,7 @@ export default {
       
       // Stop editing
       this.isEditingHeadline = false;
-      this.headlineInputWidth = null; // Reset width
+      this.initialHeadlineWidth = null; // Reset width
     },
     cancelEditingHeadline() {
       if (!this.user) {
@@ -753,7 +758,7 @@ export default {
       
       // Stop editing
       this.isEditingHeadline = false;
-      this.headlineInputWidth = null; // Reset width
+      this.initialHeadlineWidth = null; // Reset width
     },
     async updateHeadline() {
       if (!this.user) {
