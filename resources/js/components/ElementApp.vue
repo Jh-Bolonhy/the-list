@@ -113,10 +113,35 @@
       <!-- Main App Content (only shown when authenticated) -->
       <div v-if="user" class="bg-white rounded-lg shadow-lg p-6">
         <!-- Header: All elements in one row -->
-        <div class="mb-8 flex items-center relative">
+        <div class="mb-8 flex items-center relative" ref="headerRow">
           <!-- Left section: 'The List of [username]' title + Settings Menu Icon -->
           <div class="flex items-center gap-4 flex-1 justify-start">
-            <h1 class="text-3xl font-bold text-gray-800">{{ getHeaderDisplay() }}</h1>
+            <!-- Editable headline -->
+            <h1 
+              v-if="!isEditingHeadline && user"
+              @click="startEditingHeadline"
+              class="text-3xl font-bold text-gray-800 cursor-pointer hover:text-gray-600 transition-colors"
+              :title="t('clickToEdit')"
+            >
+              {{ getHeaderDisplay() }}
+            </h1>
+            <h1 
+              v-else-if="!user"
+              class="text-3xl font-bold text-gray-800"
+            >
+              {{ getHeaderDisplay() }}
+            </h1>
+            <input
+              v-else
+              v-model="headline"
+              @input="checkHeadlineWidth"
+              @blur="finishEditingHeadline"
+              @keyup.enter="finishEditingHeadline"
+              @keyup.esc="cancelEditingHeadline"
+              type="text"
+              ref="headlineInput"
+              class="text-3xl font-bold text-gray-800 bg-transparent border-b-2 border-blue-500 focus:outline-none focus:border-blue-600"
+            />
             
             <!-- Settings Menu Icon -->
             <div class="relative">
@@ -137,17 +162,6 @@
                   @click.stop
                 >
                   <div class="py-1">
-                    <!-- Header Name Input -->
-                    <div class="px-4 py-2 border-b border-gray-200">
-                      <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('forHeader') }}</label>
-                      <input
-                        v-model="headline"
-                        @blur="updateHeadline"
-                        type="text"
-                        maxlength="17"
-                        class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      />
-                    </div>
                     <!-- Language Selector -->
                     <div class="px-4 py-2 border-b border-gray-200 flex items-center justify-between gap-2">
                       <label class="text-sm font-medium text-gray-700">{{ t('language') }}</label>
@@ -483,7 +497,9 @@ export default {
   data() {
     return {
       user: null, // Current authenticated user
-      headline: '', // Headline for display (max 17 characters)
+      headline: '', // Headline for display (max width: 1/3 of row)
+      isEditingHeadline: false, // Whether headline is being edited
+      maxHeadlineWidth: 0, // Maximum allowed width for headline (1/3 of row width)
       showRegisterForm: false, // Show register form instead of login
       loginForm: {
         email: '',
@@ -609,15 +625,99 @@ export default {
       // Otherwise show default
       return this.t('defaultHeader');
     },
+    updateMaxHeadlineWidth() {
+      if (this.$refs.headerRow) {
+        const rowWidth = this.$refs.headerRow.offsetWidth;
+        this.maxHeadlineWidth = rowWidth / 3;
+      }
+    },
+    measureTextWidth(text, font) {
+      // Create a temporary canvas element to measure text width
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      context.font = font;
+      return context.measureText(text).width;
+    },
+    checkHeadlineWidth() {
+      if (!this.$refs.headerRow || !this.$refs.headlineInput) {
+        return;
+      }
+      
+      // Get the row width and calculate 1/3
+      const rowWidth = this.$refs.headerRow.offsetWidth;
+      const maxWidth = rowWidth / 3;
+      this.maxHeadlineWidth = maxWidth;
+      
+      // Get the computed font style from the input
+      const input = this.$refs.headlineInput;
+      const computedStyle = window.getComputedStyle(input);
+      const font = `${computedStyle.fontWeight} ${computedStyle.fontSize} ${computedStyle.fontFamily}`;
+      
+      // Measure the current text width
+      const textWidth = this.measureTextWidth(this.headline, font);
+      
+      // If text exceeds max width, trim it
+      if (textWidth > maxWidth) {
+        // Find the maximum length that fits
+        let trimmedText = this.headline;
+        while (trimmedText.length > 0 && this.measureTextWidth(trimmedText, font) > maxWidth) {
+          trimmedText = trimmedText.slice(0, -1);
+        }
+        this.headline = trimmedText;
+      }
+    },
+    startEditingHeadline() {
+      if (!this.user) {
+        return;
+      }
+      this.isEditingHeadline = true;
+      // Focus the input in the next tick to ensure it's rendered
+      this.$nextTick(() => {
+        const input = this.$refs.headlineInput;
+        if (input) {
+          // Calculate max width before focusing
+          if (this.$refs.headerRow) {
+            const rowWidth = this.$refs.headerRow.offsetWidth;
+            this.maxHeadlineWidth = rowWidth / 3;
+          }
+          input.focus();
+          input.select(); // Select all text for easy editing
+        }
+      });
+    },
+    async finishEditingHeadline() {
+      if (!this.user) {
+        return;
+      }
+      
+      // Check width one more time before saving
+      this.checkHeadlineWidth();
+      
+      // Save to database
+      await this.updateHeadline();
+      
+      // Stop editing
+      this.isEditingHeadline = false;
+    },
+    cancelEditingHeadline() {
+      if (!this.user) {
+        return;
+      }
+      
+      // Restore original value from user object
+      const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
+      this.headline = rawHeadline;
+      
+      // Stop editing
+      this.isEditingHeadline = false;
+    },
     async updateHeadline() {
       if (!this.user) {
         return;
       }
       
-      // Trim to 17 characters if needed
-      if (this.headline.length > 17) {
-        this.headline = this.headline.substring(0, 17);
-      }
+      // Check width before saving
+      this.checkHeadlineWidth();
       
       // Save current value before API call (in case of error)
       const previousValue = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
@@ -630,15 +730,14 @@ export default {
         // Update user object with new headline from server
         if (response.data.user) {
           this.user.headline = response.data.user.headline;
-          // Ensure headline matches server value (trim to 17 chars)
+          // Ensure headline matches server value
           const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
-          this.headline = rawHeadline.length > 17 ? rawHeadline.substring(0, 17) : rawHeadline;
+          this.headline = rawHeadline;
         }
       } catch (error) {
         console.error('Error updating headline:', error);
-        // Revert to original value on error (trim to 17 chars)
-        const trimmedPrevious = previousValue.length > 17 ? previousValue.substring(0, 17) : previousValue;
-        this.headline = trimmedPrevious;
+        // Revert to original value on error
+        this.headline = previousValue;
       }
     },
     updateCsrfToken(token) {
@@ -1716,12 +1815,20 @@ export default {
     }
   },
   async mounted() {
+    // Initialize isEditingHeadline if not already set
+    if (this.isEditingHeadline === undefined) {
+      this.isEditingHeadline = false;
+    }
     await this.checkAuth();
     // Close settings menu when clicking outside
     document.addEventListener('click', this.handleClickOutside);
+    // Update max width on window resize
+    window.addEventListener('resize', this.updateMaxHeadlineWidth);
+    this.updateMaxHeadlineWidth();
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);
+    window.removeEventListener('resize', this.updateMaxHeadlineWidth);
   },
   watch: {
     showAddModal(newVal) {
@@ -1735,9 +1842,11 @@ export default {
       }
     },
     headline(newVal) {
-      // Automatically trim to 17 characters if exceeded
-      if (newVal && newVal.length > 17) {
-        this.headline = newVal.substring(0, 17);
+      // Check width when headline changes
+      if (this.isEditingHeadline) {
+        this.$nextTick(() => {
+          this.checkHeadlineWidth();
+        });
       }
     }
   },

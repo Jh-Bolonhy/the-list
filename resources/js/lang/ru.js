@@ -49,5 +49,6 @@ export default {
   failedLogout: 'Не удалось выйти',
   settings: 'Настройки',
   forHeader: 'В заголовке:',
-  defaultHeader: 'Ваш Список'
+  defaultHeader: 'Ваш Список',
+  clickToEdit: 'Редактировать'
 };

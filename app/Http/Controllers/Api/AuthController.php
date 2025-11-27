@@ -144,7 +144,7 @@ class AuthController extends Controller
     public function updateHeadline(Request $request): JsonResponse
     {
         $request->validate([
-            'headline' => 'nullable|string|max:17',
+            'headline' => 'nullable|string|max:255', // Frontend handles width limitation
         ]);
 
         $user = Auth::user();

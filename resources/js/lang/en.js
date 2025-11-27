@@ -49,5 +49,6 @@ export default {
   failedLogout: 'Failed to logout',
   settings: 'Settings',
   forHeader: 'For header:',
-  defaultHeader: 'Your List'
+  defaultHeader: 'Your List',
+  clickToEdit: 'Click to edit'
 };
