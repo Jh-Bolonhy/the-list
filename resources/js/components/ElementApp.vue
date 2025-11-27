@@ -155,10 +155,6 @@ export default {
       loading: true,
       viewMode: 'active',
       showAddModal: false,
-      newElement: {
-        title: '',
-        description: ''
-      },
       editingElement: null,
       lang: localStorage.getItem('lang') || 'en', // Load from localStorage, default to 'en'
       draggingIndex: null,
@@ -172,7 +168,6 @@ export default {
       confirmAction: null, // 'archive' or 'remove'
       confirmMessage: '', // Confirmation message
       pendingElementId: null, // ID of element pending confirmation
-      showSettingsMenu: false, // Show settings dropdown menu
     };
   },
   computed: {
@@ -251,20 +246,11 @@ export default {
         try {
           await axios.put('/api/user/locale', { locale: newLang });
           // Update user object with new locale
-          if (this.user) {
-            this.user.locale = newLang;
-          }
+          this.user.locale = newLang;
         } catch (error) {
           console.error('Error saving locale to database:', error);
           // Not critical - continue with localStorage value
         }
-      }
-    },
-    handleClickOutside(event) {
-      // Close settings menu if clicking outside
-      const settingsMenu = event.target.closest('.relative');
-      if (this.showSettingsMenu && !settingsMenu) {
-        this.showSettingsMenu = false;
       }
     },
     getHeaderDisplay() {
@@ -463,9 +449,10 @@ export default {
         const response = await axios.get('/api/user');
         this.user = response.data.user;
         if (this.user) {
-          // Initialize headline from headline (or empty string if null), trim to 17 chars
+          // Initialize headline from headline (or empty string if null)
+          // Width limitation is handled dynamically by checkHeadlineWidth() method
           const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
-          this.headline = rawHeadline.length > 17 ? rawHeadline.substring(0, 17) : rawHeadline;
+          this.headline = rawHeadline;
           
           // Sync locale: if user has locale in DB, use it (for synchronization between devices)
           // Otherwise, use localStorage value and save it to DB
@@ -517,9 +504,10 @@ export default {
           locale: locale
         });
         this.user = response.data.user;
-        // Initialize headline from headline (or empty string if null), trim to 20 chars
+        // Initialize headline from headline (or empty string if null)
+        // Width limitation is handled dynamically by checkHeadlineWidth() method
         const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
-        this.headline = rawHeadline.length > 20 ? rawHeadline.substring(0, 20) : rawHeadline;
+        this.headline = rawHeadline;
         
         // Sync locale: if user has locale in DB, use it; otherwise use localStorage
         if (this.user.locale) {
@@ -558,9 +546,10 @@ export default {
       try {
         const response = await axios.post('/api/login', this.loginForm);
         this.user = response.data.user;
-        // Initialize headline from headline (or empty string if null), trim to 20 chars
+        // Initialize headline from headline (or empty string if null)
+        // Width limitation is handled dynamically by checkHeadlineWidth() method
         const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
-        this.headline = rawHeadline.length > 20 ? rawHeadline.substring(0, 20) : rawHeadline;
+        this.headline = rawHeadline;
         
         // Sync locale: if user has locale in DB, use it (for synchronization between devices)
         // Otherwise, use localStorage value and save it to DB
@@ -645,7 +634,6 @@ export default {
     
     closeAddModal() {
       this.showAddModal = false;
-      this.newElement = { title: '', description: '' };
     },
     
     async handleAddElement(newElementData) {
@@ -1588,14 +1576,11 @@ export default {
       this.isEditingHeadline = false;
     }
     await this.checkAuth();
-    // Close settings menu when clicking outside
-    document.addEventListener('click', this.handleClickOutside);
     // Update max width on window resize
     window.addEventListener('resize', this.updateMaxHeadlineWidth);
     this.updateMaxHeadlineWidth();
   },
   beforeUnmount() {
-    document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateMaxHeadlineWidth);
   },
   watch: {
