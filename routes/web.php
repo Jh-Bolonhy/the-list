@@ -12,6 +12,7 @@ Route::prefix('api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('auth.logout')->middleware('auth');
     Route::get('user', [AuthController::class, 'user'])->name('auth.user');
     Route::put('user/headline', [AuthController::class, 'updateHeadline'])->name('auth.update-headline')->middleware('auth');
+    Route::put('user/locale', [AuthController::class, 'updateLocale'])->name('auth.update-locale')->middleware('auth');
     
     // Protected routes - require authentication
     Route::middleware('auth')->group(function () {

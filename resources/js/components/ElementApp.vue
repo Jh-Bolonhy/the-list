@@ -160,7 +160,7 @@ export default {
         description: ''
       },
       editingElement: null,
-      lang: 'en',
+      lang: localStorage.getItem('lang') || 'en', // Load from localStorage, default to 'en'
       draggingIndex: null,
       dragOverIndex: null,
       hoverElementIndex: null, // Index of element being hovered over
@@ -241,8 +241,24 @@ export default {
     t(key) {
       return locales[this.lang][key] || key;
     },
-    setLang(newLang) {
+    async setLang(newLang) {
       this.lang = newLang;
+      // Always save to localStorage (works for both authenticated and non-authenticated users)
+      localStorage.setItem('lang', newLang);
+      
+      // If authenticated, also save to database for synchronization
+      if (this.user) {
+        try {
+          await axios.put('/api/user/locale', { locale: newLang });
+          // Update user object with new locale
+          if (this.user) {
+            this.user.locale = newLang;
+          }
+        } catch (error) {
+          console.error('Error saving locale to database:', error);
+          // Not critical - continue with localStorage value
+        }
+      }
     },
     handleClickOutside(event) {
       // Close settings menu if clicking outside
@@ -450,22 +466,52 @@ export default {
           // Initialize headline from headline (or empty string if null), trim to 17 chars
           const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
           this.headline = rawHeadline.length > 17 ? rawHeadline.substring(0, 17) : rawHeadline;
+          
+          // Sync locale: if user has locale in DB, use it (for synchronization between devices)
+          // Otherwise, use localStorage value and save it to DB
+          if (this.user.locale && this.user.locale !== this.lang) {
+            // User has different locale in DB - sync from DB (another device changed it)
+            this.lang = this.user.locale;
+            localStorage.setItem('lang', this.user.locale);
+          } else if (!this.user.locale) {
+            // User doesn't have locale in DB - save current localStorage value
+            const currentLang = localStorage.getItem('lang') || 'en';
+            this.lang = currentLang;
+            try {
+              await axios.put('/api/user/locale', { locale: currentLang });
+              this.user.locale = currentLang;
+            } catch (error) {
+              console.error('Error saving locale to database:', error);
+              // Not critical - continue with localStorage value
+            }
+          }
+          
           await this.loadElements();
         } else {
           this.headline = '';
+          // For non-authenticated users, use localStorage
+          const storedLang = localStorage.getItem('lang');
+          if (storedLang) {
+            this.lang = storedLang;
+          }
         }
       } catch (error) {
         console.error('Error checking auth:', error);
         this.user = null;
-          this.headline = '';
+        this.headline = '';
+        // For non-authenticated users, use localStorage
+        const storedLang = localStorage.getItem('lang');
+        if (storedLang) {
+          this.lang = storedLang;
+        }
       } finally {
         this.loading = false;
       }
     },
     async handleRegister() {
       try {
-        // Get current locale for headline generation
-        const locale = this.lang;
+        // Get current locale from localStorage (or default to 'en')
+        const locale = localStorage.getItem('lang') || 'en';
         const response = await axios.post('/api/register', {
           ...this.registerForm,
           locale: locale
@@ -474,6 +520,16 @@ export default {
         // Initialize headline from headline (or empty string if null), trim to 20 chars
         const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
         this.headline = rawHeadline.length > 20 ? rawHeadline.substring(0, 20) : rawHeadline;
+        
+        // Sync locale: if user has locale in DB, use it; otherwise use localStorage
+        if (this.user.locale) {
+          this.lang = this.user.locale;
+          localStorage.setItem('lang', this.user.locale);
+        } else {
+          // Should not happen, but just in case
+          this.lang = locale;
+          localStorage.setItem('lang', locale);
+        }
         
         // Update CSRF token if provided
         if (response.data.csrf_token) {
@@ -505,6 +561,25 @@ export default {
         // Initialize headline from headline (or empty string if null), trim to 20 chars
         const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
         this.headline = rawHeadline.length > 20 ? rawHeadline.substring(0, 20) : rawHeadline;
+        
+        // Sync locale: if user has locale in DB, use it (for synchronization between devices)
+        // Otherwise, use localStorage value and save it to DB
+        if (this.user.locale && this.user.locale !== this.lang) {
+          // User has different locale in DB - sync from DB (another device changed it)
+          this.lang = this.user.locale;
+          localStorage.setItem('lang', this.user.locale);
+        } else if (!this.user.locale) {
+          // User doesn't have locale in DB - save current localStorage value
+          const currentLang = localStorage.getItem('lang') || 'en';
+          this.lang = currentLang;
+          try {
+            await axios.put('/api/user/locale', { locale: currentLang });
+            this.user.locale = currentLang;
+          } catch (error) {
+            console.error('Error saving locale to database:', error);
+            // Not critical - continue with localStorage value
+          }
+        }
         
         // Update CSRF token if provided
         if (response.data.csrf_token) {

@@ -33,6 +33,7 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $request->name,
             'headline' => $defaultHeadline,
+            'locale' => $locale, // Save locale from request or default to 'en'
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -46,6 +47,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'headline' => $user->headline, // Always return headline, even if null
+                'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
                 'email' => $user->email,
             ],
             'csrf_token' => csrf_token()
@@ -72,6 +74,7 @@ class AuthController extends Controller
                         'id' => Auth::id(),
                         'name' => Auth::user()->name,
                         'headline' => Auth::user()->headline, // Always return headline, even if null
+                        'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
                         'email' => Auth::user()->email,
                     ],
                     'csrf_token' => csrf_token()
@@ -116,6 +119,7 @@ class AuthController extends Controller
                 'id' => Auth::id(),
                 'name' => Auth::user()->name,
                 'headline' => Auth::user()->headline, // Always return headline, even if null
+                'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
                 'email' => Auth::user()->email,
             ];
         } else {
@@ -157,6 +161,32 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'headline' => $user->headline, // Always return headline, even if null
+                'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
+                'email' => $user->email,
+            ]
+        ]);
+    }
+    
+    /**
+     * Update locale for authenticated user
+     */
+    public function updateLocale(Request $request): JsonResponse
+    {
+        $request->validate([
+            'locale' => 'required|string|in:en,ru',
+        ]);
+
+        $user = Auth::user();
+        $user->locale = $request->input('locale');
+        $user->save();
+
+        return response()->json([
+            'message' => 'Locale updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'headline' => $user->headline,
+                'locale' => $user->locale,
                 'email' => $user->email,
             ]
         ]);
