@@ -48,6 +48,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'headline' => $user->headline, // Always return headline, even if null
                 'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
+                'show_mode' => $user->show_mode ?? 'active', // Always return show_mode, default to 'active'
                 'email' => $user->email,
             ],
             'csrf_token' => csrf_token()
@@ -75,6 +76,7 @@ class AuthController extends Controller
                         'name' => Auth::user()->name,
                         'headline' => Auth::user()->headline, // Always return headline, even if null
                         'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
+                        'show_mode' => Auth::user()->show_mode ?? 'active', // Always return show_mode, default to 'active'
                         'email' => Auth::user()->email,
                     ],
                     'csrf_token' => csrf_token()
@@ -120,6 +122,7 @@ class AuthController extends Controller
                 'name' => Auth::user()->name,
                 'headline' => Auth::user()->headline, // Always return headline, even if null
                 'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
+                'show_mode' => Auth::user()->show_mode ?? 'active', // Always return show_mode, default to 'active'
                 'email' => Auth::user()->email,
             ];
         } else {
@@ -162,6 +165,7 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'headline' => $user->headline, // Always return headline, even if null
                 'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
+                'show_mode' => $user->show_mode ?? 'active',
                 'email' => $user->email,
             ]
         ]);
@@ -187,6 +191,33 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'headline' => $user->headline,
                 'locale' => $user->locale,
+                'show_mode' => $user->show_mode ?? 'active',
+                'email' => $user->email,
+            ]
+        ]);
+    }
+    
+    /**
+     * Update show_mode for authenticated user
+     */
+    public function updateShowMode(Request $request): JsonResponse
+    {
+        $request->validate([
+            'show_mode' => 'required|string|in:active,archived,both',
+        ]);
+
+        $user = Auth::user();
+        $user->show_mode = $request->input('show_mode');
+        $user->save();
+
+        return response()->json([
+            'message' => 'Show mode updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'headline' => $user->headline,
+                'locale' => $user->locale ?? 'en',
+                'show_mode' => $user->show_mode,
                 'email' => $user->email,
             ]
         ]);

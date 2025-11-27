@@ -13,6 +13,7 @@ Route::prefix('api')->group(function () {
     Route::get('user', [AuthController::class, 'user'])->name('auth.user');
     Route::put('user/headline', [AuthController::class, 'updateHeadline'])->name('auth.update-headline')->middleware('auth');
     Route::put('user/locale', [AuthController::class, 'updateLocale'])->name('auth.update-locale')->middleware('auth');
+    Route::put('user/show-mode', [AuthController::class, 'updateShowMode'])->name('auth.update-show-mode')->middleware('auth');
     
     // Protected routes - require authentication
     Route::middleware('auth')->group(function () {

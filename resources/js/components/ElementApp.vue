@@ -36,7 +36,7 @@
           @finish-editing="finishEditingHeadline"
           @cancel-editing="cancelEditingHeadline"
           @show-add-modal="showAddModal = true"
-          @view-mode-change="viewMode = $event; loadElements()"
+          @view-mode-change="setViewMode($event)"
           @lang-change="setLang($event)"
           @logout="handleLogout"
         />
@@ -153,7 +153,7 @@ export default {
       },
       elements: [], // Store all elements (used for both display and statistics)
       loading: true,
-      viewMode: 'active',
+      viewMode: localStorage.getItem('viewMode') || 'active', // Load from localStorage, default to 'active'
       showAddModal: false,
       editingElement: null,
       lang: localStorage.getItem('lang') || 'en', // Load from localStorage, default to 'en'
@@ -252,6 +252,26 @@ export default {
           // Not critical - continue with localStorage value
         }
       }
+    },
+    async setViewMode(newViewMode) {
+      this.viewMode = newViewMode;
+      // Always save to localStorage (works for both authenticated and non-authenticated users)
+      localStorage.setItem('viewMode', newViewMode);
+      
+      // If authenticated, also save to database for synchronization
+      if (this.user) {
+        try {
+          await axios.put('/api/user/show-mode', { show_mode: newViewMode });
+          // Update user object with new show_mode
+          this.user.show_mode = newViewMode;
+        } catch (error) {
+          console.error('Error saving show_mode to database:', error);
+          // Not critical - continue with localStorage value
+        }
+      }
+      
+      // Reload elements after view mode change
+      await this.loadElements();
     },
     getHeaderDisplay() {
       // If user is not logged in, show default
@@ -473,6 +493,25 @@ export default {
             }
           }
           
+          // Sync show_mode: if user has show_mode in DB, use it (for synchronization between devices)
+          // Otherwise, use localStorage value and save it to DB
+          if (this.user.show_mode && this.user.show_mode !== this.viewMode) {
+            // User has different show_mode in DB - sync from DB (another device changed it)
+            this.viewMode = this.user.show_mode;
+            localStorage.setItem('viewMode', this.user.show_mode);
+          } else if (!this.user.show_mode) {
+            // User doesn't have show_mode in DB - save current localStorage value
+            const currentViewMode = localStorage.getItem('viewMode') || 'active';
+            this.viewMode = currentViewMode;
+            try {
+              await axios.put('/api/user/show-mode', { show_mode: currentViewMode });
+              this.user.show_mode = currentViewMode;
+            } catch (error) {
+              console.error('Error saving show_mode to database:', error);
+              // Not critical - continue with localStorage value
+            }
+          }
+          
           await this.loadElements();
         } else {
           this.headline = '';
@@ -480,6 +519,10 @@ export default {
           const storedLang = localStorage.getItem('lang');
           if (storedLang) {
             this.lang = storedLang;
+          }
+          const storedViewMode = localStorage.getItem('viewMode');
+          if (storedViewMode) {
+            this.viewMode = storedViewMode;
           }
         }
       } catch (error) {
@@ -490,6 +533,10 @@ export default {
         const storedLang = localStorage.getItem('lang');
         if (storedLang) {
           this.lang = storedLang;
+        }
+        const storedViewMode = localStorage.getItem('viewMode');
+        if (storedViewMode) {
+          this.viewMode = storedViewMode;
         }
       } finally {
         this.loading = false;
@@ -517,6 +564,23 @@ export default {
           // Should not happen, but just in case
           this.lang = locale;
           localStorage.setItem('lang', locale);
+        }
+        
+        // Sync show_mode: if user has show_mode in DB, use it; otherwise use localStorage
+        if (this.user.show_mode) {
+          this.viewMode = this.user.show_mode;
+          localStorage.setItem('viewMode', this.user.show_mode);
+        } else {
+          // User doesn't have show_mode in DB - save current localStorage value
+          const currentViewMode = localStorage.getItem('viewMode') || 'active';
+          this.viewMode = currentViewMode;
+          try {
+            await axios.put('/api/user/show-mode', { show_mode: currentViewMode });
+            this.user.show_mode = currentViewMode;
+          } catch (error) {
+            console.error('Error saving show_mode to database:', error);
+            // Not critical - continue with localStorage value
+          }
         }
         
         // Update CSRF token if provided
@@ -566,6 +630,25 @@ export default {
             this.user.locale = currentLang;
           } catch (error) {
             console.error('Error saving locale to database:', error);
+            // Not critical - continue with localStorage value
+          }
+        }
+        
+        // Sync show_mode: if user has show_mode in DB, use it (for synchronization between devices)
+        // Otherwise, use localStorage value and save it to DB
+        if (this.user.show_mode && this.user.show_mode !== this.viewMode) {
+          // User has different show_mode in DB - sync from DB (another device changed it)
+          this.viewMode = this.user.show_mode;
+          localStorage.setItem('viewMode', this.user.show_mode);
+        } else if (!this.user.show_mode) {
+          // User doesn't have show_mode in DB - save current localStorage value
+          const currentViewMode = localStorage.getItem('viewMode') || 'active';
+          this.viewMode = currentViewMode;
+          try {
+            await axios.put('/api/user/show-mode', { show_mode: currentViewMode });
+            this.user.show_mode = currentViewMode;
+          } catch (error) {
+            console.error('Error saving show_mode to database:', error);
             // Not critical - continue with localStorage value
           }
         }

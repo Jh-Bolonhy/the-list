@@ -28,17 +28,17 @@ export function useHeadline(user) {
     if (!headerRowRef.value || !headlineInputRef.value) {
       return;
     }
-    
+
     const rowWidth = headerRowRef.value.offsetWidth;
     const maxWidth = rowWidth / 3;
     maxHeadlineWidth.value = maxWidth;
-    
+
     const input = headlineInputRef.value;
     const computedStyle = window.getComputedStyle(input);
     const font = `${computedStyle.fontWeight} ${computedStyle.fontSize} ${computedStyle.fontFamily}`;
-    
+
     const textWidth = measureTextWidth(headline.value, font);
-    
+
     if (textWidth > maxWidth) {
       let trimmedText = headline.value;
       while (trimmedText.length > 0 && measureTextWidth(trimmedText, font) > maxWidth) {
@@ -65,22 +65,21 @@ export function useHeadline(user) {
     if (!user.value) {
       return;
     }
-    
+
     const clickX = event.clientX;
     const h1Element = event.currentTarget;
     const h1Rect = h1Element.getBoundingClientRect();
     const relativeX = clickX - h1Rect.left;
     const headlineText = headline.value || (user.value.headline || '');
-    
+
     const h1Style = window.getComputedStyle(h1Element);
     const font = `${h1Style.fontWeight} ${h1Style.fontSize} ${h1Style.fontFamily}`;
-    
-    const textWidth = measureTextWidth(headlineText, font);
-    initialHeadlineWidth.value = textWidth;
-    
+
+    initialHeadlineWidth.value = measureTextWidth(headlineText, font);
+
     let cursorPosition = headlineText.length;
     let currentWidth = 0;
-    
+
     for (let i = 0; i < headlineText.length; i++) {
       const charWidth = measureTextWidth(headlineText[i], font);
       if (currentWidth + charWidth / 2 > relativeX) {
@@ -90,10 +89,10 @@ export function useHeadline(user) {
       currentWidth += charWidth;
       cursorPosition = i + 1;
     }
-    
+
     pendingCursorPosition.value = cursorPosition;
     isEditingHeadline.value = true;
-    
+
     nextTick(() => {
       const input = headlineInputRef.value;
       if (input) {
@@ -122,8 +121,8 @@ export function useHeadline(user) {
     if (!user.value) {
       return;
     }
-    const rawHeadline = user.value.headline !== null && user.value.headline !== undefined ? user.value.headline : '';
-    headline.value = rawHeadline;
+
+    headline.value = user.value.headline !== null && user.value.headline !== undefined ? user.value.headline : '';
     isEditingHeadline.value = false;
     initialHeadlineWidth.value = null;
   };
@@ -132,19 +131,18 @@ export function useHeadline(user) {
     if (!user.value) {
       return;
     }
-    
+
     checkHeadlineWidth();
     const previousValue = user.value.headline !== null && user.value.headline !== undefined ? user.value.headline : '';
-    
+
     try {
       const response = await axios.put('/api/user/headline', {
         headline: headline.value || null
       });
-      
+
       if (response.data.user) {
         user.value.headline = response.data.user.headline;
-        const rawHeadline = user.value.headline !== null && user.value.headline !== undefined ? user.value.headline : '';
-        headline.value = rawHeadline;
+        headline.value = user.value.headline !== null && user.value.headline !== undefined ? user.value.headline : '';
       }
     } catch (error) {
       console.error('Error updating headline:', error);
@@ -154,8 +152,7 @@ export function useHeadline(user) {
 
   const initializeHeadline = () => {
     if (user.value) {
-      const rawHeadline = user.value.headline !== null && user.value.headline !== undefined ? user.value.headline : '';
-      headline.value = rawHeadline;
+      headline.value = user.value.headline !== null && user.value.headline !== undefined ? user.value.headline : '';
     } else {
       headline.value = '';
     }

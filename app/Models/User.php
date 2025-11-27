@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'headline',
         'locale',
+        'show_mode',
         'email',
         'password',
     ];
