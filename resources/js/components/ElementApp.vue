@@ -112,51 +112,70 @@
 
       <!-- Main App Content (only shown when authenticated) -->
       <div v-if="user" class="bg-white rounded-lg shadow-lg p-6">
-        <div class="mb-4 flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <LanguageSwitcher :lang="lang" :t="t" @update:lang="setLang" />
-            <div class="text-sm text-gray-600">
-              {{ t('loggedInAs') }}: <span class="font-semibold">{{ user.name }}</span>
+        <!-- Header: All elements in one row -->
+        <div class="mb-8 flex items-center relative">
+          <!-- Left section: 'The List of [username]' title + Settings Menu Icon -->
+          <div class="flex items-center gap-4 flex-1 justify-start">
+            <h1 class="text-3xl font-bold text-gray-800">{{ t('elementList') }} {{ user ? user.name : '' }}</h1>
+            
+            <!-- Settings Menu Icon -->
+            <div class="relative">
+              <button
+                @click="showSettingsMenu = !showSettingsMenu"
+                class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-all duration-300 ease-in-out"
+                :title="t('settings')"
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+              <!-- Dropdown Menu -->
+              <transition name="fade">
+                <div
+                  v-if="showSettingsMenu"
+                  class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border border-gray-200"
+                  @click.stop
+                >
+                  <div class="py-1">
+                    <!-- Language Selector -->
+                    <div class="px-4 py-2 border-b border-gray-200 flex items-center justify-between gap-2">
+                      <label class="text-sm font-medium text-gray-700">{{ t('language') }}</label>
+                      <select
+                        v-model="lang"
+                        @change="setLang(lang); showSettingsMenu = false"
+                        class="flex-1 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="en">{{ t('english') }}</option>
+                        <option value="ru">{{ t('russian') }}</option>
+                      </select>
+                    </div>
+                    <button
+                      @click="showSettingsMenu = false; handleLogout()"
+                      class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-all duration-300 ease-in-out bg-gray-50"
+                    >
+                      {{ t('logout') }}
+                    </button>
+                  </div>
+                </div>
+              </transition>
             </div>
-            <button
-              @click="handleLogout"
-              class="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm transition-all duration-300 ease-in-out"
-            >
-              {{ t('logout') }}
-            </button>
           </div>
-          <div class="flex items-center">
-            <!-- Active elements box -->
-            <div class="px-3 py-1.5 bg-gray-50 rounded-lg text-sm text-gray-800 flex items-center gap-3 border border-gray-300">
-              <span>{{ activeCount }}</span>
-              <span class="text-gray-500">
-                (<span class="line-through">{{ activeCompletedCount }}</span>)
-              </span>
-            </div>
-            <!-- Separator -->
-            <span class="text-gray-600 font-bold text-lg mx-2">/</span>
-            <!-- Archived elements box -->
-            <div class="px-3 py-1.5 bg-gray-200 rounded-lg text-sm text-gray-800 border border-gray-300">
-              {{ archivedCount }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Element List -->
-        <div class="space-y-4">
-          <div class="flex items-center mb-4 relative">
-            <h2 class="text-xl font-semibold">{{ t('yourElements') }}</h2>
-            <!-- Round Add Button - always visible -->
-            <button
-              @click="showAddModal = true"
-              class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all duration-300 ease-in-out hover:scale-110 flex items-center justify-center z-10"
-              title="Add New Element"
-            >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
-              </svg>
-            </button>
-            <div class="ml-auto flex items-center gap-2">
+          
+          <!-- Center: Round Add Button (absolutely centered) -->
+          <button
+            @click="showAddModal = true"
+            class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-500 text-white rounded-full hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg transition-all duration-300 ease-in-out hover:scale-110 flex items-center justify-center z-10"
+            title="Add New Element"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
+            </svg>
+          </button>
+          
+          <!-- Right section: Show dropdown + Statistics -->
+          <div class="flex items-center gap-4 flex-1 justify-end">
+            <!-- Show dropdown -->
+            <div class="flex items-center gap-2">
               <label for="viewMode" class="text-sm font-medium text-gray-700">{{ t('show') }}:</label>
               <select
                 id="viewMode"
@@ -169,7 +188,28 @@
                 <option value="both">{{ t('both') }}</option>
               </select>
             </div>
+            
+            <!-- Statistics -->
+            <div class="flex items-center">
+              <!-- Active elements box -->
+              <div class="px-3 py-1.5 bg-gray-50 rounded-lg text-sm text-gray-800 flex items-center gap-3 border border-gray-300">
+                <span>{{ activeCount }}</span>
+                <span class="text-gray-500">
+                  (<span class="line-through">{{ activeCompletedCount }}</span>)
+                </span>
+              </div>
+              <!-- Separator -->
+              <span class="text-gray-600 font-bold text-lg mx-2">/</span>
+              <!-- Archived elements box -->
+              <div class="px-3 py-1.5 bg-gray-200 rounded-lg text-sm text-gray-800 border border-gray-300">
+                {{ archivedCount }}
+              </div>
+            </div>
           </div>
+        </div>
+
+        <!-- Element List -->
+        <div class="space-y-4">
           
           <div v-if="loading" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -424,13 +464,11 @@
 import axios from 'axios';
 import en from '../lang/en.js';
 import ru from '../lang/ru.js';
-import LanguageSwitcher from './LanguageSwitcher.vue';
-
 const locales = { en, ru };
 
 export default {
   name: 'ElementApp',
-  components: { LanguageSwitcher },
+  components: {},
   data() {
     return {
       user: null, // Current authenticated user
@@ -466,6 +504,7 @@ export default {
       confirmAction: null, // 'archive' or 'remove'
       confirmMessage: '', // Confirmation message
       pendingElementId: null, // ID of element pending confirmation
+      showSettingsMenu: false, // Show settings dropdown menu
     };
   },
   computed: {
@@ -536,6 +575,13 @@ export default {
     },
     setLang(newLang) {
       this.lang = newLang;
+    },
+    handleClickOutside(event) {
+      // Close settings menu if clicking outside
+      const settingsMenu = event.target.closest('.relative');
+      if (this.showSettingsMenu && !settingsMenu) {
+        this.showSettingsMenu = false;
+      }
     },
     updateCsrfToken(token) {
       // Update meta tag
@@ -1587,6 +1633,11 @@ export default {
   },
   async mounted() {
     await this.checkAuth();
+    // Close settings menu when clicking outside
+    document.addEventListener('click', this.handleClickOutside);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleClickOutside);
   },
   watch: {
     showAddModal(newVal) {
@@ -1613,6 +1664,19 @@ export default {
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+/* Fade transition for dropdown */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+  transform-origin: top left;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(-10px);
 }
 
 /* Modal scale transition */

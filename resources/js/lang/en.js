@@ -1,9 +1,7 @@
 export default {
-  addElement: 'Add Element',
   title: 'Title',
   description: 'Description',
   add: 'Add',
-  yourElements: 'Your List',
   loading: 'Loading elements...',
   noElements: 'No elements yet. Add one above!',
   edit: 'Edit',
@@ -30,7 +28,7 @@ export default {
   failedRestore: 'Failed to restore element',
   failedRemove: 'Failed to remove element',
   addNewElement: 'Add New',
-  elementList: 'The List',
+  elementList: 'The List of',
   language: 'Language',
   english: 'English',
   russian: 'Russian',
@@ -49,6 +47,5 @@ export default {
   failedRegister: 'Failed to register',
   failedLogin: 'Failed to login',
   failedLogout: 'Failed to logout',
-  welcome: 'Welcome',
-  loggedInAs: 'Logged in as'
+  settings: 'Settings'
 };

@@ -1,9 +1,7 @@
 export default {
-  addElement: 'Добавить',
   title: 'Заголовок',
   description: 'Описание',
   add: 'Добавить',
-  yourElements: 'Ваш список',
   loading: 'Загрузка элементов...',
   noElements: 'Пока нет элементов. Добавьте первый выше!',
   edit: 'Редактировать',
@@ -20,7 +18,7 @@ export default {
   confirmRemove: 'Вы уверены, что хотите навсегда удалить этот элемент?',
   show: 'Показать',
   active: 'Активные',
-  archived: 'Архивированные',
+  archived: 'Архивные',
   both: 'Все',
   failedLoad: 'Не удалось загрузить элементы',
   failedAdd: 'Не удалось добавить элемент',
@@ -49,6 +47,5 @@ export default {
   failedRegister: 'Не удалось зарегистрироваться',
   failedLogin: 'Не удалось войти',
   failedLogout: 'Не удалось выйти',
-  welcome: 'Добро пожаловать',
-  loggedInAs: 'Вы вошли как'
+  settings: 'Настройки'
 };
