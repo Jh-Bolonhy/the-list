@@ -25,6 +25,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $request->name,
+            'header_name' => $request->name, // Initialize with name
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -37,6 +38,7 @@ class AuthController extends Controller
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'header_name' => $user->header_name, // Always return header_name, even if null
                 'email' => $user->email,
             ],
             'csrf_token' => csrf_token()
@@ -61,6 +63,7 @@ class AuthController extends Controller
                 'user' => [
                     'id' => Auth::id(),
                     'name' => Auth::user()->name,
+                    'header_name' => Auth::user()->header_name, // Always return header_name, even if null
                     'email' => Auth::user()->email,
                 ],
                 'csrf_token' => csrf_token()
@@ -98,6 +101,7 @@ class AuthController extends Controller
             $response['user'] = [
                 'id' => Auth::id(),
                 'name' => Auth::user()->name,
+                'header_name' => Auth::user()->header_name, // Always return header_name, even if null
                 'email' => Auth::user()->email,
             ];
         } else {
@@ -117,6 +121,30 @@ class AuthController extends Controller
     {
         return response()->json([
             'csrf_token' => csrf_token()
+        ]);
+    }
+    
+    /**
+     * Update header name for authenticated user
+     */
+    public function updateHeaderName(Request $request): JsonResponse
+    {
+        $request->validate([
+            'header_name' => 'nullable|string|max:255',
+        ]);
+
+        $user = Auth::user();
+        $user->header_name = $request->input('header_name');
+        $user->save();
+
+        return response()->json([
+            'message' => 'Header name updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'header_name' => $user->header_name, // Always return header_name, even if null
+                'email' => $user->email,
+            ]
         ]);
     }
 }

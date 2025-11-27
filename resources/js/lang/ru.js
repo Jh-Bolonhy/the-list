@@ -47,5 +47,6 @@ export default {
   failedRegister: 'Не удалось зарегистрироваться',
   failedLogin: 'Не удалось войти',
   failedLogout: 'Не удалось выйти',
-  settings: 'Настройки'
+  settings: 'Настройки',
+  forHeader: 'В заголовке:'
 };

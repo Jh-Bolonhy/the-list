@@ -116,7 +116,7 @@
         <div class="mb-8 flex items-center relative">
           <!-- Left section: 'The List of [username]' title + Settings Menu Icon -->
           <div class="flex items-center gap-4 flex-1 justify-start">
-            <h1 class="text-3xl font-bold text-gray-800">{{ t('elementList') }} {{ user ? user.name : '' }}</h1>
+            <h1 class="text-3xl font-bold text-gray-800">{{ t('elementList') }}{{ user && headerName ? ' ' + headerName : '' }}</h1>
             
             <!-- Settings Menu Icon -->
             <div class="relative">
@@ -137,6 +137,16 @@
                   @click.stop
                 >
                   <div class="py-1">
+                    <!-- Header Name Input -->
+                    <div class="px-4 py-2 border-b border-gray-200">
+                      <label class="block text-xs font-medium text-gray-500 mb-1">{{ t('forHeader') }}</label>
+                      <input
+                        v-model="headerName"
+                        @blur="updateHeaderName"
+                        type="text"
+                        class="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      />
+                    </div>
                     <!-- Language Selector -->
                     <div class="px-4 py-2 border-b border-gray-200 flex items-center justify-between gap-2">
                       <label class="text-sm font-medium text-gray-700">{{ t('language') }}</label>
@@ -472,6 +482,7 @@ export default {
   data() {
     return {
       user: null, // Current authenticated user
+      headerName: '', // Header name for display
       showRegisterForm: false, // Show register form instead of login
       loginForm: {
         email: '',
@@ -583,6 +594,31 @@ export default {
         this.showSettingsMenu = false;
       }
     },
+    async updateHeaderName() {
+      if (!this.user) {
+        return;
+      }
+      
+      // Save current value before API call (in case of error)
+      const previousValue = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
+      
+      try {
+        const response = await axios.put('/api/user/header-name', {
+          header_name: this.headerName || null
+        });
+        
+        // Update user object with new header_name from server
+        if (response.data.user) {
+          this.user.header_name = response.data.user.header_name;
+          // Ensure headerName matches server value
+          this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
+        }
+      } catch (error) {
+        console.error('Error updating header name:', error);
+        // Revert to original value on error
+        this.headerName = previousValue;
+      }
+    },
     updateCsrfToken(token) {
       // Update meta tag
       const metaTag = document.head.querySelector('meta[name="csrf-token"]');
@@ -597,11 +633,16 @@ export default {
         const response = await axios.get('/api/user');
         this.user = response.data.user;
         if (this.user) {
+          // Initialize headerName from header_name (or empty string if null)
+          this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
           await this.loadElements();
+        } else {
+          this.headerName = '';
         }
       } catch (error) {
         console.error('Error checking auth:', error);
         this.user = null;
+        this.headerName = '';
       } finally {
         this.loading = false;
       }
@@ -610,6 +651,8 @@ export default {
       try {
         const response = await axios.post('/api/register', this.registerForm);
         this.user = response.data.user;
+        // Initialize headerName from header_name (or empty string if null)
+        this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
         
         // Update CSRF token if provided
         if (response.data.csrf_token) {
@@ -638,6 +681,8 @@ export default {
       try {
         const response = await axios.post('/api/login', this.loginForm);
         this.user = response.data.user;
+        // Initialize headerName from header_name (or empty string if null)
+        this.headerName = this.user.header_name !== null && this.user.header_name !== undefined ? this.user.header_name : '';
         
         // Update CSRF token if provided
         if (response.data.csrf_token) {
@@ -671,6 +716,7 @@ export default {
         
         // Reset to login page
         this.user = null;
+        this.headerName = '';
         this.elements = [];
         this.showRegisterForm = false; // Always show login form after logout
       } catch (error) {

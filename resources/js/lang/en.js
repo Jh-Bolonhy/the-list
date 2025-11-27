@@ -28,7 +28,7 @@ export default {
   failedRestore: 'Failed to restore element',
   failedRemove: 'Failed to remove element',
   addNewElement: 'Add New',
-  elementList: 'The List of',
+  elementList: 'The List',
   language: 'Language',
   english: 'English',
   russian: 'Russian',
@@ -47,5 +47,6 @@ export default {
   failedRegister: 'Failed to register',
   failedLogin: 'Failed to login',
   failedLogout: 'Failed to logout',
-  settings: 'Settings'
+  settings: 'Settings',
+  forHeader: 'For header:'
 };
