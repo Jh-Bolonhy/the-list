@@ -17,10 +17,12 @@ Route::prefix('api')->group(function () {
     
     // Protected routes - require authentication
     Route::middleware('auth')->group(function () {
-        Route::apiResource('elements', ElementController::class)->except(['destroy']);
+        // Custom routes must be defined BEFORE apiResource to avoid route conflicts
+        Route::put('elements/reorder', [ElementController::class, 'reorder'])->name('elements.reorder');
         Route::post('elements/{id}/archive', [ElementController::class, 'archive'])->name('elements.archive');
         Route::post('elements/{id}/restore', [ElementController::class, 'restore'])->name('elements.restore');
         Route::delete('elements/{id}/force', [ElementController::class, 'forceDelete'])->name('elements.force-delete');
+        Route::apiResource('elements', ElementController::class)->except(['destroy']);
     });
 });
 

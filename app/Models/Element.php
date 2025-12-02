@@ -11,6 +11,7 @@ class Element extends Model
     protected $fillable = [
         'user_id',
         'parent_element_id',
+        'order',
         'title',
         'description',
         'completed',

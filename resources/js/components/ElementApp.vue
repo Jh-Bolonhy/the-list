@@ -210,15 +210,19 @@ export default {
         });
         processed.add(element.id);
 
-        // Find and add children
-        const children = this.filteredElements.filter(e => e.parent_element_id === element.id);
+        // Find and add children, sorted by order
+        const children = this.filteredElements
+          .filter(e => e.parent_element_id === element.id)
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
         children.forEach(child => {
           addElementAndChildren(child, level + 1);
         });
       };
 
-      // First, add all root elements (those without parent)
-      const rootElements = this.filteredElements.filter(e => !e.parent_element_id);
+      // First, add all root elements (those without parent), sorted by order
+      const rootElements = this.filteredElements
+        .filter(e => !e.parent_element_id)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
       rootElements.forEach(root => {
         addElementAndChildren(root, 0);
       });
@@ -714,6 +718,70 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    /**
+     * Update order of elements in a specific group (by parent_element_id)
+     * @param {number|null} parentId - The parent_element_id of the group (null for root elements)
+     * @returns {Promise<boolean>} - Returns true if successful, false otherwise
+     */
+    async updateElementOrderInGroup(parentId) {
+      const groupElements = this.elements.filter(e => e.parent_element_id === parentId);
+      
+      if (groupElements.length === 0) {
+        return true; // No elements to update
+      }
+
+      // Create updates array with new order values based on current array order
+      const updates = groupElements.map((element, index) => ({
+        id: element.id,
+        order: index + 1
+      }));
+
+      try {
+        const response = await axios.put('/api/elements/reorder', {
+          updates: updates,
+          parent_element_id: parentId
+        });
+
+        // Update local state with server response (in case server made adjustments)
+        if (response.data.elements) {
+          response.data.elements.forEach(serverElement => {
+            const localIndex = this.elements.findIndex(e => e.id === serverElement.id);
+            if (localIndex !== -1) {
+              this.elements[localIndex].order = serverElement.order;
+            }
+          });
+        }
+        return true;
+      } catch (error) {
+        console.error('Error reordering elements:', error);
+        return false;
+      }
+    },
+
+    /**
+     * Update order in both old and new parent groups after element parent change
+     * @param {number|null} oldParentId - The old parent_element_id
+     * @param {number|null} newParentId - The new parent_element_id
+     * @returns {Promise<boolean>} - Returns true if successful, false otherwise
+     */
+    async updateElementOrderAfterParentChange(oldParentId, newParentId) {
+      // Update order in new parent group
+      const newGroupSuccess = await this.updateElementOrderInGroup(newParentId);
+      if (!newGroupSuccess) {
+        return false;
+      }
+
+      // Update order in old parent group (if element was moved from another group)
+      if (oldParentId !== newParentId && oldParentId !== null) {
+        const oldGroupSuccess = await this.updateElementOrderInGroup(oldParentId);
+        if (!oldGroupSuccess) {
+          return false;
+        }
+      }
+
+      return true;
     },
 
     closeAddModal() {
@@ -1389,13 +1457,21 @@ export default {
               parent_element_id: parentElement.id
             });
 
-            // Update local state instead of reloading
+            // Update local state
             const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
             if (elementIndex !== -1) {
+              const oldParentId = this.elements[elementIndex].parent_element_id;
               this.elements[elementIndex].parent_element_id = parentElement.id;
+
+              // Update order in both old and new parent groups
+              const success = await this.updateElementOrderAfterParentChange(oldParentId, parentElement.id);
+              if (!success) {
+                throw new Error('Failed to update element order');
+              }
             }
           } catch (error) {
             console.error('Error setting parent element:', error);
+            await this.loadElements(); // Reload on error
             alert(this.t('failedUpdate'));
           }
           this.dragOverIndex = null;
@@ -1444,13 +1520,21 @@ export default {
             parent_element_id: newParentId
           });
 
-          // Update local state instead of reloading
+          // Update local state
           const elementIndex = this.elements.findIndex(e => e.id === originalElement.id);
           if (elementIndex !== -1) {
+            const oldParentId = this.elements[elementIndex].parent_element_id;
             this.elements[elementIndex].parent_element_id = newParentId;
+
+            // Update order in both old and new parent groups
+            const success = await this.updateElementOrderAfterParentChange(oldParentId, newParentId);
+            if (!success) {
+              throw new Error('Failed to update element order');
+            }
           }
         } catch (error) {
           console.error('Error setting parent element:', error);
+          await this.loadElements(); // Reload on error
           alert(this.t('failedUpdate'));
         }
         this.dragOverIndex = null;
@@ -1491,7 +1575,20 @@ export default {
       // Insert it at the new position
       newElements.splice(insertIndex, 0, originalElement);
 
+      // Update local state first for immediate UI feedback
       this.elements = newElements;
+
+      // Determine which elements changed order and send to server
+      // Group elements by parent_element_id and update order for affected groups
+      const parentId = originalElement.parent_element_id;
+      const success = await this.updateElementOrderInGroup(parentId);
+      
+      if (!success) {
+        // Revert to original order on error
+        await this.loadElements();
+        alert(this.t('failedUpdate'));
+      }
+
       this.dragOverIndex = null;
     },
 
@@ -1582,13 +1679,21 @@ export default {
             parent_element_id: parentElement.id
           });
 
-          // Update local state instead of reloading
+          // Update local state
           const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
           if (elementIndex !== -1) {
+            const oldParentId = this.elements[elementIndex].parent_element_id;
             this.elements[elementIndex].parent_element_id = parentElement.id;
+
+            // Update order in both old and new parent groups
+            const success = await this.updateElementOrderAfterParentChange(oldParentId, parentElement.id);
+            if (!success) {
+              throw new Error('Failed to update element order');
+            }
           }
         } catch (error) {
           console.error('Error setting parent element:', error);
+          await this.loadElements(); // Reload on error
           alert(this.t('failedUpdate'));
         }
         this.dragOverIndex = null;
