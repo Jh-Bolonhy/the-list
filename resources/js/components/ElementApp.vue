@@ -1069,22 +1069,22 @@ export default {
           // Two elements in drop zone - increase margin for both elements
           if (index === this.hoverElementIndex) {
             // Upper element - increase bottom margin
-            classes.push('mb-[30px]');
+            classes.push('mb-[1.25rem]'); // 20px = 1.25rem
           } else if (index === this.hoverElementIndex + 1) {
             // Lower element - increase top margin
-            classes.push('mt-[30px]');
+            classes.push('mt-[1.25rem]'); // 20px = 1.25rem
           }
         } else if (this.hoverElementPart === 'above') {
           // Only first element in drop zone - always increase top margin
           // (mouse is above the element, even if outside the list)
           if (index === 0) {
-            classes.push('mt-[30px]'); // Always top margin when mouse is above
+            classes.push('mt-[1.25rem]'); // 20px = 1.25rem // Always top margin when mouse is above
           }
         } else if (this.hoverElementPart === 'below') {
           // Only last element in drop zone - always increase bottom margin
           // (mouse is below the element, even if outside the list)
           if (index === this.hierarchicalElements.length - 1) {
-            classes.push('mb-[30px]'); // Always bottom margin when mouse is below
+            classes.push('mb-[1.25rem]'); // 20px = 1.25rem // Always bottom margin when mouse is below
           }
         }
       }
@@ -1820,7 +1820,7 @@ export default {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-  transform: scale(0.95) translateY(-10px);
+  transform: scale(0.95) translateY(-0.625rem); /* 10px = 0.625rem */
 }
 
 /* Modal scale transition */
@@ -1848,12 +1848,12 @@ export default {
 
 .list-enter-from {
   opacity: 0;
-  transform: translateY(-20px);
+  transform: translateY(-1.25rem); /* 20px = 1.25rem */
 }
 
 .list-leave-to {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(1.25rem); /* 20px = 1.25rem */
 }
 
 .list-leave-active {

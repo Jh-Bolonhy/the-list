@@ -185,24 +185,26 @@ export default {
   computed: {
     combinedStyles() {
       const styles = {
-        marginLeft: this.element.level > 0 ? `${this.element.level * 20}px` : '0'
+        // 20px = 1.25rem (20 / 16 = 1.25)
+        marginLeft: this.element.level > 0 ? `${this.element.level * 1.25}rem` : '0'
       };
       
       // Базовый отрицательный marginTop для визуального сжатия вложенных элементов
       const baseMarginTop = (1 - Math.pow(0.8, this.element.level + 1)) * 0.75;
       
       // Проверяем, есть ли классы для drag-and-drop маржи
-      // Если есть mt-[30px], используем его (перезаписываем базовый)
-      if (this.elementClasses && this.elementClasses.includes('mt-[30px]')) {
-        styles.marginTop = '30px';
+      // 20px = 1.25rem (20 / 16 = 1.25)
+      // Если есть mt-[1.25rem], используем его (перезаписываем базовый)
+      if (this.elementClasses && this.elementClasses.includes('mt-[1.25rem]')) {
+        styles.marginTop = '1.25rem';
       } else {
         // Иначе используем базовый отрицательный отступ
         styles.marginTop = `-${baseMarginTop}rem`;
       }
       
-      // Если есть mb-[30px], добавляем нижнюю маржу
-      if (this.elementClasses && this.elementClasses.includes('mb-[30px]')) {
-        styles.marginBottom = '30px';
+      // Если есть mb-[1.25rem], добавляем нижнюю маржу
+      if (this.elementClasses && this.elementClasses.includes('mb-[1.25rem]')) {
+        styles.marginBottom = '1.25rem';
       }
       
       return styles;
