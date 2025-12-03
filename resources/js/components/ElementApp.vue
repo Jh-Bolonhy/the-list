@@ -163,7 +163,6 @@ export default {
       hoverElementPart: null, // 'upper', 'middle', 'lower', 'above', 'below', 'between'
       mouseY: 0, // Current mouse Y position
       dropZoneElements: [], // Array of element indices in the drop zone
-      lastDragOverIndex: null, // Last stable dragOverIndex to prevent flickering
       dragOverTimeout: null, // Timeout for debouncing dragOver updates
       showConfirmModal: false, // Show confirmation modal
       confirmAction: null, // 'archive' or 'remove'
@@ -240,6 +239,61 @@ export default {
   methods: {
     t(key) {
       return locales[this.lang][key] || key;
+    },
+    /**
+     * Handle errors with optional reload and alert
+     * @param {Error} error - The error object
+     * @param {string} messageKey - Translation key for error message
+     * @param {boolean} reload - Whether to reload elements on error
+     */
+    async handleError(error, messageKey, reload = true) {
+      console.error(`Error: ${messageKey}`, error);
+      if (reload) {
+        await this.loadElements();
+      }
+      alert(this.t(messageKey));
+    },
+    /**
+     * Sync locale between localStorage and database
+     * @param {string} currentLang - Current locale from localStorage
+     */
+    async syncLocale(currentLang) {
+      if (this.user.locale && this.user.locale !== this.lang) {
+        // User has different locale in DB - sync from DB (another device changed it)
+        this.lang = this.user.locale;
+        localStorage.setItem('lang', this.user.locale);
+      } else if (!this.user.locale) {
+        // User doesn't have locale in DB - save current localStorage value
+        this.lang = currentLang;
+        try {
+          await axios.put('/api/user/locale', { locale: currentLang });
+          this.user.locale = currentLang;
+        } catch (error) {
+          console.error('Error saving locale to database:', error);
+          // Not critical - continue with localStorage value
+        }
+      }
+    },
+    /**
+     * Sync show_mode between localStorage and database
+     * @param {string} currentViewMode - Current view mode from localStorage
+     */
+    async syncShowMode(currentViewMode) {
+      if (this.user.show_mode && this.user.show_mode !== this.viewMode) {
+        // User has different show_mode in DB - sync from DB (another device changed it)
+        this.viewMode = this.user.show_mode;
+        localStorage.setItem('viewMode', this.user.show_mode);
+      } else if (!this.user.show_mode) {
+        // User doesn't have show_mode in DB - save current localStorage value
+        this.viewMode = currentViewMode;
+        try {
+          await axios.put('/api/user/show-mode', { show_mode: currentViewMode });
+          this.user.show_mode = currentViewMode;
+        } catch (error) {
+          console.error('Error saving show_mode to database:', error);
+          // Not critical - continue with localStorage value
+        }
+      }
     },
     async setLang(newLang) {
       this.lang = newLang;
@@ -479,43 +533,12 @@ export default {
           const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
           this.headline = rawHeadline;
 
-          // Sync locale: if user has locale in DB, use it (for synchronization between devices)
-          // Otherwise, use localStorage value and save it to DB
-          if (this.user.locale && this.user.locale !== this.lang) {
-            // User has different locale in DB - sync from DB (another device changed it)
-            this.lang = this.user.locale;
-            localStorage.setItem('lang', this.user.locale);
-          } else if (!this.user.locale) {
-            // User doesn't have locale in DB - save current localStorage value
-            const currentLang = localStorage.getItem('lang') || 'en';
-            this.lang = currentLang;
-            try {
-              await axios.put('/api/user/locale', { locale: currentLang });
-              this.user.locale = currentLang;
-            } catch (error) {
-              console.error('Error saving locale to database:', error);
-              // Not critical - continue with localStorage value
-            }
-          }
-
-          // Sync show_mode: if user has show_mode in DB, use it (for synchronization between devices)
-          // Otherwise, use localStorage value and save it to DB
-          if (this.user.show_mode && this.user.show_mode !== this.viewMode) {
-            // User has different show_mode in DB - sync from DB (another device changed it)
-            this.viewMode = this.user.show_mode;
-            localStorage.setItem('viewMode', this.user.show_mode);
-          } else if (!this.user.show_mode) {
-            // User doesn't have show_mode in DB - save current localStorage value
-            const currentViewMode = localStorage.getItem('viewMode') || 'active';
-            this.viewMode = currentViewMode;
-            try {
-              await axios.put('/api/user/show-mode', { show_mode: currentViewMode });
-              this.user.show_mode = currentViewMode;
-            } catch (error) {
-              console.error('Error saving show_mode to database:', error);
-              // Not critical - continue with localStorage value
-            }
-          }
+          // Sync locale and show_mode
+          const currentLang = localStorage.getItem('lang') || 'en';
+          await this.syncLocale(currentLang);
+          
+          const currentViewMode = localStorage.getItem('viewMode') || 'active';
+          await this.syncShowMode(currentViewMode);
 
           await this.loadElements();
         } else {
@@ -561,32 +584,17 @@ export default {
         const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
         this.headline = rawHeadline;
 
-        // Sync locale: if user has locale in DB, use it; otherwise use localStorage
+        // Sync locale and show_mode
         if (this.user.locale) {
           this.lang = this.user.locale;
           localStorage.setItem('lang', this.user.locale);
         } else {
-          // Should not happen, but just in case
           this.lang = locale;
           localStorage.setItem('lang', locale);
         }
-
-        // Sync show_mode: if user has show_mode in DB, use it; otherwise use localStorage
-        if (this.user.show_mode) {
-          this.viewMode = this.user.show_mode;
-          localStorage.setItem('viewMode', this.user.show_mode);
-        } else {
-          // User doesn't have show_mode in DB - save current localStorage value
-          const currentViewMode = localStorage.getItem('viewMode') || 'active';
-          this.viewMode = currentViewMode;
-          try {
-            await axios.put('/api/user/show-mode', { show_mode: currentViewMode });
-            this.user.show_mode = currentViewMode;
-          } catch (error) {
-            console.error('Error saving show_mode to database:', error);
-            // Not critical - continue with localStorage value
-          }
-        }
+        
+        const currentViewMode = localStorage.getItem('viewMode') || 'active';
+        await this.syncShowMode(currentViewMode);
 
         // Update CSRF token if provided
         if (response.data.csrf_token) {
@@ -620,43 +628,12 @@ export default {
         const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
         this.headline = rawHeadline;
 
-        // Sync locale: if user has locale in DB, use it (for synchronization between devices)
-        // Otherwise, use localStorage value and save it to DB
-        if (this.user.locale && this.user.locale !== this.lang) {
-          // User has different locale in DB - sync from DB (another device changed it)
-          this.lang = this.user.locale;
-          localStorage.setItem('lang', this.user.locale);
-        } else if (!this.user.locale) {
-          // User doesn't have locale in DB - save current localStorage value
-          const currentLang = localStorage.getItem('lang') || 'en';
-          this.lang = currentLang;
-          try {
-            await axios.put('/api/user/locale', { locale: currentLang });
-            this.user.locale = currentLang;
-          } catch (error) {
-            console.error('Error saving locale to database:', error);
-            // Not critical - continue with localStorage value
-          }
-        }
-
-        // Sync show_mode: if user has show_mode in DB, use it (for synchronization between devices)
-        // Otherwise, use localStorage value and save it to DB
-        if (this.user.show_mode && this.user.show_mode !== this.viewMode) {
-          // User has different show_mode in DB - sync from DB (another device changed it)
-          this.viewMode = this.user.show_mode;
-          localStorage.setItem('viewMode', this.user.show_mode);
-        } else if (!this.user.show_mode) {
-          // User doesn't have show_mode in DB - save current localStorage value
-          const currentViewMode = localStorage.getItem('viewMode') || 'active';
-          this.viewMode = currentViewMode;
-          try {
-            await axios.put('/api/user/show-mode', { show_mode: currentViewMode });
-            this.user.show_mode = currentViewMode;
-          } catch (error) {
-            console.error('Error saving show_mode to database:', error);
-            // Not critical - continue with localStorage value
-          }
-        }
+        // Sync locale and show_mode
+        const currentLang = localStorage.getItem('lang') || 'en';
+        await this.syncLocale(currentLang);
+        
+        const currentViewMode = localStorage.getItem('viewMode') || 'active';
+        await this.syncShowMode(currentViewMode);
 
         // Update CSRF token if provided
         if (response.data.csrf_token) {
@@ -702,8 +679,7 @@ export default {
         this.elements = [];
         this.showRegisterForm = false; // Always show login form after logout
       } catch (error) {
-        console.error('Error logging out:', error);
-        alert(this.t('failedLogout'));
+        this.handleError(error, 'failedLogout', false);
       }
     },
     async loadElements() {
@@ -713,8 +689,7 @@ export default {
         const response = await axios.get('/api/elements');
         this.elements = response.data;
       } catch (error) {
-        console.error('Error loading elements:', error);
-        alert(this.t('failedLoad'));
+        this.handleError(error, 'failedLoad', false);
       } finally {
         this.loading = false;
       }
@@ -798,8 +773,7 @@ export default {
 
         this.closeAddModal();
       } catch (error) {
-        console.error('Error adding element:', error);
-        alert(this.t('failedAdd'));
+        this.handleError(error, 'failedAdd', false);
       }
     },
 
@@ -813,8 +787,7 @@ export default {
           this.elements[index] = response.data;
         }
       } catch (error) {
-        console.error('Error toggling element:', error);
-        alert(this.t('failedUpdate'));
+        this.handleError(error, 'failedUpdate', false);
       }
     },
 
@@ -832,15 +805,9 @@ export default {
         if (index !== -1) {
           this.elements[index] = response.data;
         }
-        // Update in elements array
-        const elementIndex = this.elements.findIndex(e => e.id === this.editingElement.id);
-        if (elementIndex !== -1) {
-          this.elements[elementIndex] = response.data;
-        }
         this.editingElement = null;
       } catch (error) {
-        console.error('Error updating element:', error);
-        alert(this.t('failedUpdate'));
+        this.handleError(error, 'failedUpdate', false);
       }
     },
 
@@ -864,8 +831,7 @@ export default {
         this.updateElementAndDescendants(id, { archived: true });
         // Note: Filtering is handled automatically by filteredElements computed property
       } catch (error) {
-        console.error('Error archiving element:', error);
-        alert(this.t('failedArchive'));
+        this.handleError(error, 'failedArchive', false);
       }
     },
 
@@ -877,8 +843,7 @@ export default {
         this.updateElementAndDescendants(id, { archived: false });
         // Note: Filtering is handled automatically by filteredElements computed property
       } catch (error) {
-        console.error('Error restoring element:', error);
-        alert(this.t('failedRestore'));
+        this.handleError(error, 'failedRestore', false);
       }
     },
 
@@ -900,8 +865,7 @@ export default {
           this.elements.splice(elementIndex, 1);
         }
       } catch (error) {
-        console.error('Error removing element:', error);
-        alert(this.t('failedRemove'));
+        this.handleError(error, 'failedRemove', false);
       }
     },
 
@@ -944,8 +908,7 @@ export default {
           this.elements[elementIndex].parent_element_id = parentId;
         }
       } catch (error) {
-        console.error('Error setting parent element:', error);
-        alert(this.t('failedUpdate'));
+        this.handleError(error, 'failedUpdate', false);
       }
     },
 
@@ -1017,6 +980,181 @@ export default {
     findParentElementId(elementId) {
       const element = this.elements.find(e => e.id === elementId);
       return element ? element.parent_element_id : null;
+    },
+    /**
+     * Check if element should be moved (not dropping at original position)
+     * @param {number} actualDropIndex - The drop index
+     * @returns {boolean} - True if element should be moved
+     */
+    shouldMoveElement(actualDropIndex) {
+      // If dropping back at the original position (between the same neighbors), don't move
+      if (actualDropIndex === this.draggingIndex) {
+        return false;
+      }
+      // If dropping at draggingIndex + 1 and it's not the bottom position, it's the original position
+      if (actualDropIndex === this.draggingIndex + 1 && actualDropIndex !== this.hierarchicalElements.length) {
+        return false;
+      }
+      return true;
+    },
+    /**
+     * Calculate insertion index in elements array based on drop position in hierarchicalElements
+     * @param {Object} originalElement - The element to move
+     * @param {number} actualDropIndex - The target drop index in hierarchicalElements
+     * @returns {number} - The new insertion index in elements array (before removal)
+     */
+    calculateInsertIndex(originalElement, actualDropIndex) {
+      if (actualDropIndex === this.hierarchicalElements.length) {
+        // Moving to the bottom - insert at the end
+        return this.elements.length;
+      } else {
+        // Moving between elements
+        // Find the target element in hierarchicalElements and then find it in original elements
+        const targetElement = this.hierarchicalElements[actualDropIndex];
+        if (targetElement) {
+          const targetOriginalIndex = this.elements.findIndex(e => e.id === targetElement.id);
+          if (targetOriginalIndex !== -1) {
+            return targetOriginalIndex;
+          }
+        }
+      }
+      return this.elements.length; // Default to end
+    },
+    /**
+     * Move element in the elements array
+     * @param {Object} originalElement - The element to move
+     * @param {number} insertIndex - The index to insert at (before removal)
+     */
+    moveElementInArray(originalElement, insertIndex) {
+      const newElements = [...this.elements];
+      const originalIndex = this.elements.findIndex(e => e.id === originalElement.id);
+      
+      // Remove the dragged element from its original position
+      newElements.splice(originalIndex, 1);
+      
+      // Adjust insertIndex if element was removed before target position
+      const adjustedInsertIndex = originalIndex < insertIndex ? insertIndex - 1 : insertIndex;
+      
+      // Insert it at the new position
+      newElements.splice(adjustedInsertIndex, 0, originalElement);
+      
+      // Update local state first for immediate UI feedback
+      this.elements = newElements;
+    },
+    /**
+     * Update parent and order after element move
+     * @param {Object} originalElement - The moved element
+     * @param {number|null} newParentId - The new parent ID
+     */
+    async updateParentAndOrder(originalElement, newParentId) {
+      const parentChanged = originalElement.parent_element_id !== newParentId;
+      
+      if (parentChanged) {
+        try {
+          await axios.put(`/api/elements/${originalElement.id}`, {
+            parent_element_id: newParentId
+          });
+
+          // Update local state
+          const elementIndex = this.elements.findIndex(e => e.id === originalElement.id);
+          if (elementIndex !== -1) {
+            const oldParentId = originalElement.parent_element_id;
+            this.elements[elementIndex].parent_element_id = newParentId;
+
+            // Update order in both old and new parent groups
+            // This must be called AFTER moving the element in the array
+            const success = await this.updateElementOrderAfterParentChange(oldParentId, newParentId);
+            if (!success) {
+              throw new Error('Failed to update element order');
+            }
+          }
+        } catch (error) {
+          await this.handleError(error, 'failedUpdate', true);
+          throw error; // Re-throw to allow caller to handle
+        }
+      } else {
+        // Parent didn't change, just update order in the same group
+        const parentId = originalElement.parent_element_id;
+        const success = await this.updateElementOrderInGroup(parentId);
+        
+        if (!success) {
+          // Revert to original order on error
+          await this.handleError(new Error('Failed to update order'), 'failedUpdate', true);
+          throw new Error('Failed to update order');
+        }
+      }
+    },
+    /**
+     * Determine drop position from mouse coordinates when dragOverIndex is null
+     * @param {Event} event - The drop event
+     * @param {HTMLElement} listContainer - The list container element
+     */
+    determineDropPositionFromMouse(event, listContainer) {
+      const allElements = listContainer.querySelectorAll('[draggable="true"]');
+      if (allElements.length === 0) {
+        return;
+      }
+
+      const mouseY = event.clientY;
+      const firstElement = allElements[0];
+      const lastElement = allElements[allElements.length - 1];
+
+      if (firstElement) {
+        const firstRect = firstElement.getBoundingClientRect();
+        const firstThirdHeight = firstRect.height / 3;
+        if (mouseY < firstRect.top + firstThirdHeight) {
+          this.dragOverIndex = 0;
+          this.hoverElementIndex = 0;
+          this.hoverElementPart = 'above';
+          return;
+        }
+      }
+
+      if (lastElement && this.dragOverIndex === null) {
+        const lastRect = lastElement.getBoundingClientRect();
+        const lastThirdHeight = lastRect.height / 3;
+        if (mouseY > lastRect.bottom - lastThirdHeight) {
+          this.dragOverIndex = this.hierarchicalElements.length;
+          this.hoverElementIndex = this.hierarchicalElements.length - 1;
+          this.hoverElementPart = 'below';
+        }
+      }
+    },
+    /**
+     * Handle dropping element on middle third (making it a child)
+     * @param {Object} draggedElement - The element being dragged
+     * @param {Object} parentElement - The element to become parent
+     */
+    async handleMiddleDrop(draggedElement, parentElement) {
+      // Prevent element from being its own parent or child
+      if (draggedElement.id === parentElement.id) {
+        this.dragOverIndex = null;
+        return;
+      }
+
+      try {
+        await axios.put(`/api/elements/${draggedElement.id}`, {
+          parent_element_id: parentElement.id
+        });
+
+        // Update local state
+        const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
+        if (elementIndex !== -1) {
+          const oldParentId = this.elements[elementIndex].parent_element_id;
+          this.elements[elementIndex].parent_element_id = parentElement.id;
+
+          // Update order in both old and new parent groups
+          const success = await this.updateElementOrderAfterParentChange(oldParentId, parentElement.id);
+          if (!success) {
+            throw new Error('Failed to update element order');
+          }
+        }
+      } catch (error) {
+        await this.handleError(error, 'failedUpdate', true);
+        this.dragOverIndex = null;
+        return;
+      }
+      this.dragOverIndex = null;
     },
 
     // Update element and all its descendants in local state
@@ -1106,6 +1244,90 @@ export default {
       document.addEventListener('drop', this.handleDocumentDrop);
     },
 
+    /**
+     * Check if mouse is above the first element
+     * @param {number} mouseY - Mouse Y coordinate
+     * @param {HTMLElement} firstElement - First element in the list
+     * @returns {boolean} - True if mouse is above first element
+     */
+    checkMouseAboveFirstElement(mouseY, firstElement) {
+      if (!firstElement) return false;
+      const firstRect = firstElement.getBoundingClientRect();
+      const firstThirdHeight = firstRect.height / 3;
+      return mouseY < firstRect.top + firstThirdHeight;
+    },
+    /**
+     * Check if mouse is below the last element
+     * @param {number} mouseY - Mouse Y coordinate
+     * @param {HTMLElement} lastElement - Last element in the list
+     * @returns {boolean} - True if mouse is below last element
+     */
+    checkMouseBelowLastElement(mouseY, lastElement) {
+      if (!lastElement) return false;
+      const lastRect = lastElement.getBoundingClientRect();
+      const lastThirdHeight = lastRect.height / 3;
+      return mouseY > lastRect.bottom - lastThirdHeight;
+    },
+    /**
+     * Check if mouse is between two elements
+     * @param {number} mouseY - Mouse Y coordinate
+     * @param {HTMLElement} currentElement - Upper element
+     * @param {HTMLElement} nextElement - Lower element
+     * @returns {boolean} - True if mouse is between elements
+     */
+    checkMouseBetweenElements(mouseY, currentElement, nextElement) {
+      if (!currentElement || !nextElement) return false;
+      const currentRect = currentElement.getBoundingClientRect();
+      const nextRect = nextElement.getBoundingClientRect();
+      const currentLowerThirdStart = currentRect.bottom - currentRect.height / 3;
+      const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
+      return mouseY >= currentLowerThirdStart && mouseY <= nextUpperThirdEnd;
+    },
+    /**
+     * Check if mouse is in the middle third of an element
+     * @param {number} mouseY - Mouse Y coordinate
+     * @param {HTMLElement} element - Element to check
+     * @returns {boolean} - True if mouse is in middle third
+     */
+    checkMouseInMiddleThird(mouseY, element) {
+      if (!element) return false;
+      const elementRect = element.getBoundingClientRect();
+      const elementHeight = elementRect.height;
+      const thirdHeight = elementHeight / 3;
+      const y = mouseY - elementRect.top;
+      return y >= thirdHeight && y <= (elementHeight - thirdHeight);
+    },
+    /**
+     * Check if mouse position is in a between-zone (not middle third)
+     * @param {number} mouseY - Mouse Y coordinate
+     * @param {HTMLElement} element - Element to check
+     * @param {HTMLElement} prevElement - Previous element (if exists)
+     * @param {HTMLElement} nextElement - Next element (if exists)
+     * @returns {boolean} - True if in between zone
+     */
+    isMouseInBetweenZone(mouseY, element, prevElement, nextElement) {
+      if (!element) return false;
+      const elementRect = element.getBoundingClientRect();
+      const thirdHeight = elementRect.height / 3;
+      
+      if (prevElement) {
+        const prevRect = prevElement.getBoundingClientRect();
+        const prevLowerThirdStart = prevRect.bottom - prevRect.height / 3;
+        if (mouseY >= prevLowerThirdStart && mouseY <= elementRect.top + thirdHeight) {
+          return true;
+        }
+      }
+      
+      if (nextElement) {
+        const nextRect = nextElement.getBoundingClientRect();
+        const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
+        if (mouseY >= elementRect.bottom - thirdHeight && mouseY <= nextUpperThirdEnd) {
+          return true;
+        }
+      }
+      
+      return false;
+    },
     handleDocumentDragOver(event) {
       if (this.draggingIndex === null) {
         return;
@@ -1145,34 +1367,22 @@ export default {
 
       // Check if mouse is above the first element (above upper third)
       const firstElement = elementArray[0];
-      if (firstElement) {
-        const firstRect = firstElement.getBoundingClientRect();
-        const firstThirdHeight = firstRect.height / 3;
-
-        // Check if mouse is above the upper third of the first element
-        if (mouseY < firstRect.top + firstThirdHeight) {
-          this.hoverElementIndex = 0;
-          this.hoverElementPart = 'above';
-          this.dragOverIndex = 0;
-          this.dropZoneElements = [0]; // First element is in drop zone
-          return;
-        }
+      if (this.checkMouseAboveFirstElement(mouseY, firstElement)) {
+        this.hoverElementIndex = 0;
+        this.hoverElementPart = 'above';
+        this.dragOverIndex = 0;
+        this.dropZoneElements = [0];
+        return;
       }
 
       // Check if mouse is below the last element (below lower third)
       const lastElement = elementArray[elementArray.length - 1];
-      if (lastElement) {
-        const lastRect = lastElement.getBoundingClientRect();
-        const lastThirdHeight = lastRect.height / 3;
-
-        // Check if mouse is below the lower third of the last element
-        if (mouseY > lastRect.bottom - lastThirdHeight) {
-          this.hoverElementIndex = this.hierarchicalElements.length - 1;
-          this.hoverElementPart = 'below';
-          this.dragOverIndex = this.hierarchicalElements.length;
-          this.dropZoneElements = [this.hierarchicalElements.length - 1]; // Last element is in drop zone
-          return;
-        }
+      if (this.checkMouseBelowLastElement(mouseY, lastElement)) {
+        this.hoverElementIndex = this.hierarchicalElements.length - 1;
+        this.hoverElementPart = 'below';
+        this.dragOverIndex = this.hierarchicalElements.length;
+        this.dropZoneElements = [this.hierarchicalElements.length - 1];
+        return;
       }
 
       // Check if mouse is between any two elements
@@ -1180,36 +1390,21 @@ export default {
         const currentElement = elementArray[i];
         const nextElement = elementArray[i + 1];
 
-        if (currentElement && nextElement) {
-          const currentRect = currentElement.getBoundingClientRect();
-          const nextRect = nextElement.getBoundingClientRect();
+        if (this.checkMouseBetweenElements(mouseY, currentElement, nextElement)) {
+          // Find the actual index in hierarchicalElements array (not elements array!)
+          const currentElementId = currentElement.getAttribute('data-element-id');
+          const hierarchicalIndex = this.hierarchicalElements.findIndex(e => e.id.toString() === currentElementId);
 
-          // Lower third of upper element starts here
-          const currentLowerThirdStart = currentRect.bottom - currentRect.height / 3;
-          // Upper third of lower element ends here
-          const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
-
-          // If mouse is in the extended zone: lower third of upper element, space between, or upper third of lower element
-          // Use >= and <= to include the boundaries
-          if (mouseY >= currentLowerThirdStart && mouseY <= nextUpperThirdEnd) {
-            // Find the actual index in hierarchicalElements array (not elements array!)
-            const currentElementId = currentElement.getAttribute('data-element-id');
-            const hierarchicalIndex = this.hierarchicalElements.findIndex(e => e.id.toString() === currentElementId);
-
-            if (hierarchicalIndex !== -1) {
-              // Only update if the dragOverIndex actually changed to prevent flickering
-              const newDragOverIndex = hierarchicalIndex + 1;
-              if (this.dragOverIndex !== newDragOverIndex || this.hoverElementPart !== 'between') {
-                this.hoverElementIndex = hierarchicalIndex;
-                this.hoverElementPart = 'between';
-                this.dragOverIndex = newDragOverIndex;
-
-                // Set drop zone elements using hierarchical indices
-                this.dropZoneElements = [hierarchicalIndex, hierarchicalIndex + 1];
-              }
-
-              return;
+          if (hierarchicalIndex !== -1) {
+            // Only update if the dragOverIndex actually changed to prevent flickering
+            const newDragOverIndex = hierarchicalIndex + 1;
+            if (this.dragOverIndex !== newDragOverIndex || this.hoverElementPart !== 'between') {
+              this.hoverElementIndex = hierarchicalIndex;
+              this.hoverElementPart = 'between';
+              this.dragOverIndex = newDragOverIndex;
+              this.dropZoneElements = [hierarchicalIndex, hierarchicalIndex + 1];
             }
+            return;
           }
         }
       }
@@ -1217,51 +1412,22 @@ export default {
       // Check if mouse is in the middle third of any element
       for (let i = 0; i < elementArray.length; i++) {
         const element = elementArray[i];
-        if (element) {
-          const elementRect = element.getBoundingClientRect();
-          const elementHeight = elementRect.height;
-          const thirdHeight = elementHeight / 3;
+        if (this.checkMouseInMiddleThird(mouseY, element)) {
+          // Find the actual index in hierarchicalElements array (not elements array!)
+          const elementId = element.getAttribute('data-element-id');
+          const hierarchicalIndex = this.hierarchicalElements.findIndex(e => e.id.toString() === elementId);
 
-          // Check if mouse is in middle third
-          const y = mouseY - elementRect.top;
-          const isMiddleThird = y >= thirdHeight && y <= (elementHeight - thirdHeight);
-
-          if (isMiddleThird) {
-            // Find the actual index in hierarchicalElements array (not elements array!)
-            const elementId = element.getAttribute('data-element-id');
-            const hierarchicalIndex = this.hierarchicalElements.findIndex(e => e.id.toString() === elementId);
-
-            if (hierarchicalIndex !== -1 && hierarchicalIndex !== this.draggingIndex) {
-              // Check if we're not in a 'between' zone
-              let isInBetweenZone = false;
-              if (i > 0) {
-                const prevElement = elementArray[i - 1];
-                if (prevElement) {
-                  const prevRect = prevElement.getBoundingClientRect();
-                  const prevLowerThirdStart = prevRect.bottom - prevRect.height / 3;
-                  if (mouseY >= prevLowerThirdStart && mouseY <= elementRect.top + thirdHeight) {
-                    isInBetweenZone = true;
-                  }
-                }
-              }
-              if (!isInBetweenZone && i < elementArray.length - 1) {
-                const nextElement = elementArray[i + 1];
-                if (nextElement) {
-                  const nextRect = nextElement.getBoundingClientRect();
-                  const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
-                  if (mouseY >= elementRect.bottom - thirdHeight && mouseY <= nextUpperThirdEnd) {
-                    isInBetweenZone = true;
-                  }
-                }
-              }
-
-              if (!isInBetweenZone) {
-                this.hoverElementIndex = hierarchicalIndex;
-                this.hoverElementPart = 'middle';
-                this.dragOverIndex = null;
-                this.dropZoneElements = [hierarchicalIndex];
-                return;
-              }
+          if (hierarchicalIndex !== -1 && hierarchicalIndex !== this.draggingIndex) {
+            // Check if we're not in a 'between' zone
+            const prevElement = i > 0 ? elementArray[i - 1] : null;
+            const nextElement = i < elementArray.length - 1 ? elementArray[i + 1] : null;
+            
+            if (!this.isMouseInBetweenZone(mouseY, element, prevElement, nextElement)) {
+              this.hoverElementIndex = hierarchicalIndex;
+              this.hoverElementPart = 'middle';
+              this.dragOverIndex = null;
+              this.dropZoneElements = [hierarchicalIndex];
+              return;
             }
           }
         }
@@ -1305,7 +1471,7 @@ export default {
         const currentElementIndex = elementArray.indexOf(event.currentTarget);
 
         // Check if mouse is above upper third of first element - insert at beginning
-        if (index === 0 && mouseY < elementRect.top + thirdHeight) {
+        if (index === 0 && this.checkMouseAboveFirstElement(mouseY, event.currentTarget)) {
           this.hoverElementIndex = 0;
           this.hoverElementPart = 'above';
           this.dragOverIndex = 0;
@@ -1314,7 +1480,7 @@ export default {
         }
 
         // Check if mouse is below lower third of last element - insert at end
-        if (index === this.hierarchicalElements.length - 1 && mouseY > elementRect.bottom - thirdHeight) {
+        if (index === this.hierarchicalElements.length - 1 && this.checkMouseBelowLastElement(mouseY, event.currentTarget)) {
           this.hoverElementIndex = this.hierarchicalElements.length - 1;
           this.hoverElementPart = 'below';
           this.dragOverIndex = this.hierarchicalElements.length;
@@ -1323,73 +1489,51 @@ export default {
         }
 
         // Check if mouse is in the zone between previous and current element
-        // Zone includes: lower third of previous element, space between, and upper third of current element
         if (index > 0 && currentElementIndex > 0) {
           const prevElement = elementArray[currentElementIndex - 1];
-          if (prevElement) {
-            const prevRect = prevElement.getBoundingClientRect();
-            // Lower third of previous element starts here
-            const prevLowerThirdStart = prevRect.bottom - prevRect.height / 3;
-            // Upper third of current element ends here
-            const currentUpperThirdEnd = elementRect.top + thirdHeight;
-
-          // If mouse is in the extended zone (lower third of prev, space between, or upper third of current)
-          if (mouseY >= prevLowerThirdStart && mouseY <= currentUpperThirdEnd) {
-              // Only update if the dragOverIndex actually changed to prevent flickering
-              if (this.dragOverIndex !== index || this.hoverElementPart !== 'between') {
-                this.hoverElementIndex = index - 1;
-                this.hoverElementPart = 'between';
-                this.dragOverIndex = index;
-
-                // Set drop zone elements
-                this.dropZoneElements = [index - 1, index];
-              }
-
-              return;
+          if (this.checkMouseBetweenElements(mouseY, prevElement, event.currentTarget)) {
+            // Only update if the dragOverIndex actually changed to prevent flickering
+            if (this.dragOverIndex !== index || this.hoverElementPart !== 'between') {
+              this.hoverElementIndex = index - 1;
+              this.hoverElementPart = 'between';
+              this.dragOverIndex = index;
+              this.dropZoneElements = [index - 1, index];
             }
+            return;
           }
         }
 
         // Check if mouse is in the zone between current and next element
-        // Zone includes: lower third of current element, space between, and upper third of next element
         if (index < this.hierarchicalElements.length - 1 && currentElementIndex < elementArray.length - 1) {
           const nextElement = elementArray[currentElementIndex + 1];
-          if (nextElement) {
-            const nextRect = nextElement.getBoundingClientRect();
-            // Lower third of current element starts here
-            const currentLowerThirdStart = elementRect.bottom - thirdHeight;
-            // Upper third of next element ends here
-            const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
-
-            // If mouse is in the extended zone (lower third of current, space between, or upper third of next)
-            if (mouseY >= currentLowerThirdStart && mouseY <= nextUpperThirdEnd) {
-              // Only update if the dragOverIndex actually changed to prevent flickering
-              if (this.dragOverIndex !== index + 1 || this.hoverElementPart !== 'between') {
-                this.hoverElementIndex = index;
-                this.hoverElementPart = 'between';
-                this.dragOverIndex = index + 1;
-
-                // Set drop zone elements
-                this.dropZoneElements = [index, index + 1];
-              }
-
-              return;
+          if (this.checkMouseBetweenElements(mouseY, event.currentTarget, nextElement)) {
+            // Only update if the dragOverIndex actually changed to prevent flickering
+            if (this.dragOverIndex !== index + 1 || this.hoverElementPart !== 'between') {
+              this.hoverElementIndex = index;
+              this.hoverElementPart = 'between';
+              this.dragOverIndex = index + 1;
+              this.dropZoneElements = [index, index + 1];
             }
+            return;
           }
         }
 
         // If mouse is in middle third and not in between-elements zone, show visual effect but don't allow drop
-        const y = mouseY - elementRect.top;
-        const isMiddleThird = y >= thirdHeight && y <= (elementHeight - thirdHeight);
-        if (isMiddleThird) {
-          this.hoverElementIndex = index;
-          this.hoverElementPart = 'middle';
-          this.dragOverIndex = null;
-          this.dropZoneElements = [];
-          return;
+        if (this.checkMouseInMiddleThird(mouseY, event.currentTarget)) {
+          const prevElement = currentElementIndex > 0 ? elementArray[currentElementIndex - 1] : null;
+          const nextElement = currentElementIndex < elementArray.length - 1 ? elementArray[currentElementIndex + 1] : null;
+          
+          if (!this.isMouseInBetweenZone(mouseY, event.currentTarget, prevElement, nextElement)) {
+            this.hoverElementIndex = index;
+            this.hoverElementPart = 'middle';
+            this.dragOverIndex = null;
+            this.dropZoneElements = [];
+            return;
+          }
         }
 
         // Default fallback: if in upper third, insert before; if in lower third, insert after
+        const y = mouseY - elementRect.top;
         const isUpperThird = y < thirdHeight;
         if (isUpperThird) {
           this.hoverElementIndex = index;
@@ -1444,37 +1588,7 @@ export default {
         if (this.hoverElementPart === 'middle' && this.hoverElementIndex !== null) {
           const draggedElement = this.hierarchicalElements[this.draggingIndex];
           const parentElement = this.hierarchicalElements[this.hoverElementIndex];
-
-          // Prevent element from being its own parent or child
-          if (draggedElement.id === parentElement.id) {
-            this.dragOverIndex = null;
-            return;
-          }
-
-          // Update parent_element_id via API and update local state
-          try {
-            await axios.put(`/api/elements/${draggedElement.id}`, {
-              parent_element_id: parentElement.id
-            });
-
-            // Update local state
-            const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
-            if (elementIndex !== -1) {
-              const oldParentId = this.elements[elementIndex].parent_element_id;
-              this.elements[elementIndex].parent_element_id = parentElement.id;
-
-              // Update order in both old and new parent groups
-              const success = await this.updateElementOrderAfterParentChange(oldParentId, parentElement.id);
-              if (!success) {
-                throw new Error('Failed to update element order');
-              }
-            }
-          } catch (error) {
-            console.error('Error setting parent element:', error);
-            await this.loadElements(); // Reload on error
-            alert(this.t('failedUpdate'));
-          }
-          this.dragOverIndex = null;
+          await this.handleMiddleDrop(draggedElement, parentElement);
           return;
         }
         // Otherwise, it's an invalid drop
@@ -1484,19 +1598,8 @@ export default {
       // Use dragOverIndex instead of dropIndex for accurate positioning
       const actualDropIndex = this.dragOverIndex;
 
-      // If dropping back at the original position (between the same neighbors), don't move
-      // Original position is between draggingIndex and draggingIndex + 1
-      // Exception: if moving to the very bottom (elements.length), allow it even if it's draggingIndex + 1
-      // because the element might not be the last one
-      if (actualDropIndex === this.draggingIndex) {
-        // Dropping at the same position
-        this.dragOverIndex = null;
-        return;
-      }
-
-      // If dropping at draggingIndex + 1 and it's not the bottom position, it's the original position
-      if (actualDropIndex === this.draggingIndex + 1 && actualDropIndex !== this.hierarchicalElements.length) {
-        // Element returns to its original position - no change needed
+      // Check if element should be moved
+      if (!this.shouldMoveElement(actualDropIndex)) {
         this.dragOverIndex = null;
         return;
       }
@@ -1513,81 +1616,16 @@ export default {
       // Determine the new parent based on drop position
       const newParentId = this.determineParentFromDropPosition(actualDropIndex);
 
-      const newElements = [...this.elements];
-      const originalIndex = this.elements.findIndex(e => e.id === draggedElement.id);
+      // Calculate insertion index and move element in array
+      const insertIndex = this.calculateInsertIndex(originalElement, actualDropIndex);
+      this.moveElementInArray(originalElement, insertIndex);
 
-      // Remove the dragged element from its original position
-      newElements.splice(originalIndex, 1);
-
-      // Calculate the correct insertion index using actualDropIndex
-      // We need to find the target element in the original elements array
-      let insertIndex;
-      if (actualDropIndex === this.hierarchicalElements.length) {
-        // Moving to the bottom (after removal, array length is elements.length - 1)
-        insertIndex = newElements.length;
-      } else {
-        // Moving between elements
-        // Find the target element in hierarchicalElements and then find it in original elements
-        const targetElement = this.hierarchicalElements[actualDropIndex];
-        if (targetElement) {
-          const targetOriginalIndex = this.elements.findIndex(e => e.id === targetElement.id);
-          if (targetOriginalIndex !== -1) {
-            insertIndex = targetOriginalIndex;
-            if (originalIndex < targetOriginalIndex) {
-              insertIndex = targetOriginalIndex - 1;
-            }
-          } else {
-            insertIndex = newElements.length;
-          }
-        } else {
-          insertIndex = newElements.length;
-        }
-      }
-
-      // Insert it at the new position
-      newElements.splice(insertIndex, 0, originalElement);
-
-      // Update local state first for immediate UI feedback
-      this.elements = newElements;
-
-      // If parent changed, update it via API
-      const parentChanged = originalElement.parent_element_id !== newParentId;
-      if (parentChanged) {
-        try {
-          await axios.put(`/api/elements/${originalElement.id}`, {
-            parent_element_id: newParentId
-          });
-
-          // Update local state
-          const elementIndex = this.elements.findIndex(e => e.id === originalElement.id);
-          if (elementIndex !== -1) {
-            const oldParentId = originalElement.parent_element_id;
-            this.elements[elementIndex].parent_element_id = newParentId;
-
-            // Update order in both old and new parent groups
-            // This must be called AFTER moving the element in the array
-            const success = await this.updateElementOrderAfterParentChange(oldParentId, newParentId);
-            if (!success) {
-              throw new Error('Failed to update element order');
-            }
-          }
-        } catch (error) {
-          console.error('Error setting parent element:', error);
-          await this.loadElements(); // Reload on error
-          alert(this.t('failedUpdate'));
-          this.dragOverIndex = null;
-          return;
-        }
-      } else {
-        // Parent didn't change, just update order in the same group
-        const parentId = originalElement.parent_element_id;
-        const success = await this.updateElementOrderInGroup(parentId);
-        
-        if (!success) {
-          // Revert to original order on error
-          await this.loadElements();
-          alert(this.t('failedUpdate'));
-        }
+      // Update parent and order
+      try {
+        await this.updateParentAndOrder(originalElement, newParentId);
+      } catch (error) {
+        this.dragOverIndex = null;
+        return;
       }
 
       this.dragOverIndex = null;
@@ -1609,7 +1647,6 @@ export default {
       this.hoverElementIndex = null;
       this.hoverElementPart = null;
       this.dropZoneElements = [];
-      this.lastDragOverIndex = null;
       this.mouseY = 0;
     },
 
@@ -1633,71 +1670,14 @@ export default {
 
       // If dragOverIndex is still null, try to determine position from mouse coordinates
       if (this.dragOverIndex === null) {
-        const listContainer = event.currentTarget;
-        const allElements = listContainer.querySelectorAll('[draggable="true"]');
-
-        if (allElements.length > 0) {
-          const mouseY = event.clientY;
-          const firstElement = allElements[0];
-          const lastElement = allElements[allElements.length - 1];
-
-          if (firstElement) {
-            const firstRect = firstElement.getBoundingClientRect();
-            const firstThirdHeight = firstRect.height / 3;
-            if (mouseY < firstRect.top + firstThirdHeight) {
-              this.dragOverIndex = 0;
-              this.hoverElementIndex = 0;
-              this.hoverElementPart = 'above';
-            }
-          }
-
-          if (lastElement && this.dragOverIndex === null) {
-            const lastRect = lastElement.getBoundingClientRect();
-            const lastThirdHeight = lastRect.height / 3;
-            if (mouseY > lastRect.bottom - lastThirdHeight) {
-              this.dragOverIndex = this.hierarchicalElements.length;
-              this.hoverElementIndex = this.hierarchicalElements.length - 1;
-              this.hoverElementPart = 'below';
-            }
-          }
-        }
+        this.determineDropPositionFromMouse(event, event.currentTarget);
       }
 
       // Check if we're dropping on middle third (making it a child)
       if (this.dragOverIndex === null && this.hoverElementPart === 'middle' && this.hoverElementIndex !== null) {
         const draggedElement = this.hierarchicalElements[this.draggingIndex];
         const parentElement = this.hierarchicalElements[this.hoverElementIndex];
-
-        // Prevent element from being its own parent or child
-        if (draggedElement.id === parentElement.id) {
-          this.dragOverIndex = null;
-          return;
-        }
-
-        // Update parent_element_id via API and update local state
-        try {
-          await axios.put(`/api/elements/${draggedElement.id}`, {
-            parent_element_id: parentElement.id
-          });
-
-          // Update local state
-          const elementIndex = this.elements.findIndex(e => e.id === draggedElement.id);
-          if (elementIndex !== -1) {
-            const oldParentId = this.elements[elementIndex].parent_element_id;
-            this.elements[elementIndex].parent_element_id = parentElement.id;
-
-            // Update order in both old and new parent groups
-            const success = await this.updateElementOrderAfterParentChange(oldParentId, parentElement.id);
-            if (!success) {
-              throw new Error('Failed to update element order');
-            }
-          }
-        } catch (error) {
-          console.error('Error setting parent element:', error);
-          await this.loadElements(); // Reload on error
-          alert(this.t('failedUpdate'));
-        }
-        this.dragOverIndex = null;
+        await this.handleMiddleDrop(draggedElement, parentElement);
         return;
       }
 
@@ -1726,35 +1706,7 @@ export default {
 
       // If dragOverIndex is still null, try to determine position from mouse coordinates
       if (this.dragOverIndex === null) {
-        const allElements = listContainer.querySelectorAll('[draggable="true"]');
-
-        if (allElements.length > 0) {
-          const mouseY = event.clientY;
-          const firstElement = allElements[0];
-          const lastElement = allElements[allElements.length - 1];
-
-          if (firstElement) {
-            const firstRect = firstElement.getBoundingClientRect();
-            const firstThirdHeight = firstRect.height / 3;
-            // If mouse is above the upper third of first element (even if outside visual bounds)
-            if (mouseY < firstRect.top + firstThirdHeight) {
-              this.dragOverIndex = 0;
-              this.hoverElementIndex = 0;
-              this.hoverElementPart = 'above';
-            }
-          }
-
-          if (lastElement && this.dragOverIndex === null) {
-            const lastRect = lastElement.getBoundingClientRect();
-            const lastThirdHeight = lastRect.height / 3;
-            // If mouse is below the lower third of last element (even if outside visual bounds)
-            if (mouseY > lastRect.bottom - lastThirdHeight) {
-              this.dragOverIndex = this.hierarchicalElements.length;
-              this.hoverElementIndex = this.hierarchicalElements.length - 1;
-              this.hoverElementPart = 'below';
-            }
-          }
-        }
+        this.determineDropPositionFromMouse(event, listContainer);
       }
 
       // Use the same drop logic as regular handleDrop
