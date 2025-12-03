@@ -7,10 +7,7 @@
     @dragleave="$emit('drag-leave')"
     @drop="$emit('drop', $event, index)"
     @dragend="$emit('drag-end')"
-    :style="{
-      marginLeft: element.level > 0 ? `${element.level * 20}px` : '0',
-      marginTop: `-${(1 - Math.pow(0.8, element.level + 1)) * 0.75}rem`
-    }"
+    :style="combinedStyles"
     :class="[
       elementClasses,
       'flex items-center p-4 rounded-lg transition-all duration-300 ease-in-out border border-gray-300',
@@ -184,7 +181,33 @@ export default {
     'archive',
     'restore',
     'remove'
-  ]
+  ],
+  computed: {
+    combinedStyles() {
+      const styles = {
+        marginLeft: this.element.level > 0 ? `${this.element.level * 20}px` : '0'
+      };
+      
+      // Базовый отрицательный marginTop для визуального сжатия вложенных элементов
+      const baseMarginTop = (1 - Math.pow(0.8, this.element.level + 1)) * 0.75;
+      
+      // Проверяем, есть ли классы для drag-and-drop маржи
+      // Если есть mt-[30px], используем его (перезаписываем базовый)
+      if (this.elementClasses && this.elementClasses.includes('mt-[30px]')) {
+        styles.marginTop = '30px';
+      } else {
+        // Иначе используем базовый отрицательный отступ
+        styles.marginTop = `-${baseMarginTop}rem`;
+      }
+      
+      // Если есть mb-[30px], добавляем нижнюю маржу
+      if (this.elementClasses && this.elementClasses.includes('mb-[30px]')) {
+        styles.marginBottom = '30px';
+      }
+      
+      return styles;
+    }
+  }
 };
 </script>
 
