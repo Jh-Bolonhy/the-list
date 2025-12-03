@@ -1192,20 +1192,20 @@ export default {
           // If mouse is in the extended zone: lower third of upper element, space between, or upper third of lower element
           // Use >= and <= to include the boundaries
           if (mouseY >= currentLowerThirdStart && mouseY <= nextUpperThirdEnd) {
-            // Find the actual index in elements array
+            // Find the actual index in hierarchicalElements array (not elements array!)
             const currentElementId = currentElement.getAttribute('data-element-id');
-            const currentIndex = this.elements.findIndex(e => e.id.toString() === currentElementId);
+            const hierarchicalIndex = this.hierarchicalElements.findIndex(e => e.id.toString() === currentElementId);
 
-            if (currentIndex !== -1) {
+            if (hierarchicalIndex !== -1) {
               // Only update if the dragOverIndex actually changed to prevent flickering
-              const newDragOverIndex = currentIndex + 1;
+              const newDragOverIndex = hierarchicalIndex + 1;
               if (this.dragOverIndex !== newDragOverIndex || this.hoverElementPart !== 'between') {
-                this.hoverElementIndex = currentIndex;
+                this.hoverElementIndex = hierarchicalIndex;
                 this.hoverElementPart = 'between';
                 this.dragOverIndex = newDragOverIndex;
 
-                // Set drop zone elements
-                this.dropZoneElements = [currentIndex, currentIndex + 1];
+                // Set drop zone elements using hierarchical indices
+                this.dropZoneElements = [hierarchicalIndex, hierarchicalIndex + 1];
               }
 
               return;
@@ -1227,11 +1227,11 @@ export default {
           const isMiddleThird = y >= thirdHeight && y <= (elementHeight - thirdHeight);
 
           if (isMiddleThird) {
-            // Find the actual index in elements array
+            // Find the actual index in hierarchicalElements array (not elements array!)
             const elementId = element.getAttribute('data-element-id');
-            const elementIndex = this.elements.findIndex(e => e.id.toString() === elementId);
+            const hierarchicalIndex = this.hierarchicalElements.findIndex(e => e.id.toString() === elementId);
 
-            if (elementIndex !== -1 && elementIndex !== this.draggingIndex) {
+            if (hierarchicalIndex !== -1 && hierarchicalIndex !== this.draggingIndex) {
               // Check if we're not in a 'between' zone
               let isInBetweenZone = false;
               if (i > 0) {
@@ -1256,10 +1256,10 @@ export default {
               }
 
               if (!isInBetweenZone) {
-                this.hoverElementIndex = elementIndex;
+                this.hoverElementIndex = hierarchicalIndex;
                 this.hoverElementPart = 'middle';
                 this.dragOverIndex = null;
-                this.dropZoneElements = [elementIndex];
+                this.dropZoneElements = [hierarchicalIndex];
                 return;
               }
             }
@@ -1426,7 +1426,7 @@ export default {
           }
         }
         // If relatedTarget is another element in the list, don't clear - let dragover handle it
-      }, 50); // Small delay to allow dragover on neighboring element to fire first
+      }, 100); // Small delay to allow dragover on neighboring element to fire first
     },
 
     async handleDrop(event, dropIndex) {
