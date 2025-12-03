@@ -1513,34 +1513,6 @@ export default {
       // Determine the new parent based on drop position
       const newParentId = this.determineParentFromDropPosition(actualDropIndex);
 
-      // If parent changed, update it via API and update local state
-      if (originalElement.parent_element_id !== newParentId) {
-        try {
-          await axios.put(`/api/elements/${originalElement.id}`, {
-            parent_element_id: newParentId
-          });
-
-          // Update local state
-          const elementIndex = this.elements.findIndex(e => e.id === originalElement.id);
-          if (elementIndex !== -1) {
-            const oldParentId = this.elements[elementIndex].parent_element_id;
-            this.elements[elementIndex].parent_element_id = newParentId;
-
-            // Update order in both old and new parent groups
-            const success = await this.updateElementOrderAfterParentChange(oldParentId, newParentId);
-            if (!success) {
-              throw new Error('Failed to update element order');
-            }
-          }
-        } catch (error) {
-          console.error('Error setting parent element:', error);
-          await this.loadElements(); // Reload on error
-          alert(this.t('failedUpdate'));
-        }
-        this.dragOverIndex = null;
-        return;
-      }
-
       const newElements = [...this.elements];
       const originalIndex = this.elements.findIndex(e => e.id === draggedElement.id);
 
@@ -1578,15 +1550,44 @@ export default {
       // Update local state first for immediate UI feedback
       this.elements = newElements;
 
-      // Determine which elements changed order and send to server
-      // Group elements by parent_element_id and update order for affected groups
-      const parentId = originalElement.parent_element_id;
-      const success = await this.updateElementOrderInGroup(parentId);
-      
-      if (!success) {
-        // Revert to original order on error
-        await this.loadElements();
-        alert(this.t('failedUpdate'));
+      // If parent changed, update it via API
+      const parentChanged = originalElement.parent_element_id !== newParentId;
+      if (parentChanged) {
+        try {
+          await axios.put(`/api/elements/${originalElement.id}`, {
+            parent_element_id: newParentId
+          });
+
+          // Update local state
+          const elementIndex = this.elements.findIndex(e => e.id === originalElement.id);
+          if (elementIndex !== -1) {
+            const oldParentId = originalElement.parent_element_id;
+            this.elements[elementIndex].parent_element_id = newParentId;
+
+            // Update order in both old and new parent groups
+            // This must be called AFTER moving the element in the array
+            const success = await this.updateElementOrderAfterParentChange(oldParentId, newParentId);
+            if (!success) {
+              throw new Error('Failed to update element order');
+            }
+          }
+        } catch (error) {
+          console.error('Error setting parent element:', error);
+          await this.loadElements(); // Reload on error
+          alert(this.t('failedUpdate'));
+          this.dragOverIndex = null;
+          return;
+        }
+      } else {
+        // Parent didn't change, just update order in the same group
+        const parentId = originalElement.parent_element_id;
+        const success = await this.updateElementOrderInGroup(parentId);
+        
+        if (!success) {
+          // Revert to original order on error
+          await this.loadElements();
+          alert(this.t('failedUpdate'));
+        }
       }
 
       this.dragOverIndex = null;
