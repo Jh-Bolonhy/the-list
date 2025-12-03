@@ -1216,7 +1216,7 @@ export default {
           // Only first element in drop zone - always increase top margin
           // (mouse is above the element, even if outside the list)
           if (index === 0) {
-            classes.push('mt-[1.25rem]'); // 20px = 1.25rem // Always top margin when mouse is above
+            classes.push('mt-[2.55rem]'); // 40.8px = 2.55rem // Special case for first root element
           }
         } else if (this.hoverElementPart === 'below') {
           // Only last element in drop zone - always increase bottom margin

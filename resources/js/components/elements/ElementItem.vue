@@ -193,9 +193,11 @@ export default {
       const baseMarginTop = (1 - Math.pow(0.8, this.element.level + 1)) * 0.75;
       
       // Проверяем, есть ли классы для drag-and-drop маржи
-      // 20px = 1.25rem (20 / 16 = 1.25)
-      // Если есть mt-[1.25rem], используем его (перезаписываем базовый)
-      if (this.elementClasses && this.elementClasses.includes('mt-[1.25rem]')) {
+      // 20px = 1.25rem (20 / 16 = 1.25), 40.8px = 2.55rem (40.8 / 16 = 2.55)
+      // Если есть mt-[2.55rem], используем его (специальный случай для первого корневого элемента)
+      if (this.elementClasses && this.elementClasses.includes('mt-[2.55rem]')) {
+        styles.marginTop = '2.55rem';
+      } else if (this.elementClasses && this.elementClasses.includes('mt-[1.25rem]')) {
         styles.marginTop = '1.25rem';
       } else {
         // Иначе используем базовый отрицательный отступ
