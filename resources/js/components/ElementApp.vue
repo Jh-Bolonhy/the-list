@@ -57,7 +57,7 @@
             v-else
             name="list"
             tag="div"
-            class="space-y-3"
+            class="space-y-3 list-container"
             @dragover.prevent="handleGlobalDragOver"
             @drop.prevent="handleGlobalDrop"
           >
@@ -1938,6 +1938,13 @@ export default {
   transition: all 0.3s ease-in-out;
 }
 
+/* Smooth height transition for list container when elements collapse/expand */
+/* Note: height: auto doesn't animate, so we rely on transition-group's built-in transitions */
+.space-y-3 {
+  /* The transition-group handles item transitions, we just ensure smooth spacing */
+  transition: gap 0.3s ease-in-out;
+}
+
 .list-enter-from {
   opacity: 0;
   transform: translateY(-1.25rem); /* 20px = 1.25rem */
@@ -1949,8 +1956,25 @@ export default {
 }
 
 .list-leave-active {
-  position: absolute;
+  /* Keep element in flow to allow container to resize smoothly */
   width: 100%;
+  transition: all 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease-in-out, height 0.3s ease-in-out, margin 0.3s ease-in-out;
+  /* Don't use position: absolute to allow smooth height transitions */
 }
+
+/* Smooth height transition for list container when elements collapse/expand */
+/* The container needs to smoothly resize as children are added/removed */
+.list-container {
+  /* Use max-height for smooth animation (height: auto doesn't animate) */
+  transition: max-height 0.3s ease-in-out;
+  max-height: 99999px; /* Large value to accommodate all elements */
+}
+
+/* White background container - minimum height equals viewport height minus top/bottom padding */
+/* Parent container has py-8 (2rem top + 2rem bottom = 4rem total) */
+.bg-white.rounded-lg.shadow-lg {
+  min-height: calc(100vh - 4rem);
+}
+
 </style>
 
