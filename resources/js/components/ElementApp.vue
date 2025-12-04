@@ -60,6 +60,7 @@
             class="space-y-3 list-container"
             @dragover.prevent="handleGlobalDragOver"
             @drop.prevent="handleGlobalDrop"
+            @before-leave="onBeforeLeave"
           >
             <template v-for="(element, index) in hierarchicalElements" :key="element.id">
               <ElementItem
@@ -932,6 +933,18 @@ export default {
         ...this.collapsedElements,
         [elementId]: !this.collapsedElements[elementId]
       };
+    },
+    /**
+     * Preserve element width before it becomes absolutely positioned
+     * This prevents elements from shrinking when position: absolute is applied
+     * @param {HTMLElement} el - The element that is about to leave
+     */
+    onBeforeLeave(el) {
+      // Save the current width before position: absolute is applied
+      const width = el.offsetWidth;
+      if (width > 0) {
+        el.style.width = width + 'px';
+      }
     },
 
     async setParentElement(elementId, parentId) {
@@ -1932,7 +1945,9 @@ export default {
 }
 
 /* List transition for smooth element reordering */
-.list-move,
+.list-move {
+  transition: transform 0.3s ease-in-out !important;
+}
 .list-enter-active,
 .list-leave-active {
   transition: all 0.3s ease-in-out;
@@ -1968,11 +1983,11 @@ export default {
 }
 
 .list-leave-active {
-  /* Keep element in flow to allow container to resize smoothly */
-  /* Don't set width: 100% - it causes elements to expand beyond their margins */
-  /* Elements should maintain their natural width (which already accounts for margin-left) */
-  transition: all 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease-in-out, height 0.3s ease-in-out, margin 0.3s ease-in-out;
-  /* Don't use position: absolute to allow smooth height transitions */
+  /* Use position: absolute to allow smooth movement of remaining elements */
+  position: absolute;
+  /* Preserve element's width before it becomes absolutely positioned */
+  /* Width will be set by Vue transition-group based on element's computed width */
+  transition: all 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease-in-out, width 0s;
   /* Preserve element's original width and margins during collapse animation */
   box-sizing: border-box;
   /* Ensure flex items don't expand beyond their container */
