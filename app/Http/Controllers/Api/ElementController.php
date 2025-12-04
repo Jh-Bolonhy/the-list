@@ -203,5 +203,133 @@ class ElementController extends Controller
             'elements' => $updatedElements
         ]);
     }
+
+    /**
+     * Move element to new position and parent atomically
+     * This method handles both parent change and reordering in a single transaction
+     */
+    public function move(Request $request): JsonResponse
+    {
+        $request->validate([
+            'element_id' => 'required|exists:elements,id',
+            'new_parent_id' => 'nullable|exists:elements,id',
+            'target_order' => 'nullable|integer|min:1'
+        ]);
+
+        $elementId = $request->input('element_id');
+        $newParentId = $request->input('new_parent_id');
+        $targetOrder = $request->input('target_order');
+        $userId = Auth::id();
+
+        // Get the element to move
+        $element = Element::where('user_id', $userId)->findOrFail($elementId);
+
+        // Prevent element from being its own parent
+        if ($newParentId == $elementId) {
+            return response()->json(['error' => 'Element cannot be its own parent'], 400);
+        }
+
+        // Verify new parent belongs to the same user if provided
+        if ($newParentId) {
+            $parent = Element::where('user_id', $userId)->find($newParentId);
+            if (!$parent) {
+                return response()->json(['error' => 'Parent element not found or does not belong to you'], 400);
+            }
+        }
+
+        $oldParentId = $element->parent_element_id;
+
+        // Start transaction for atomic update
+        DB::beginTransaction();
+        try {
+            // Update parent_element_id if changed
+            if ($oldParentId != $newParentId) {
+                $element->parent_element_id = $newParentId;
+                $element->save();
+            }
+
+            // Get all elements in the new parent group (after moving)
+            $newGroupElements = Element::where('user_id', $userId)
+                ->where('parent_element_id', $newParentId)
+                ->where('id', '!=', $elementId) // Exclude the moved element temporarily
+                ->orderBy('order', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Determine target order
+            if ($targetOrder === null) {
+                // Move to end
+                $targetOrder = $newGroupElements->count() + 1;
+            } else {
+                // Ensure target order is within valid range
+                $targetOrder = max(1, min($targetOrder, $newGroupElements->count() + 1));
+            }
+
+            // Recalculate orders for new group
+            $order = 1;
+            $movedElementOrdered = false;
+            $affectedElementIds = [$elementId];
+
+            foreach ($newGroupElements as $groupElement) {
+                if ($order === $targetOrder && !$movedElementOrdered) {
+                    // Insert moved element here
+                    $element->order = $order;
+                    $element->save();
+                    $movedElementOrdered = true;
+                    $order++;
+                }
+                if ($groupElement->order != $order) {
+                    $groupElement->order = $order;
+                    $groupElement->save();
+                    $affectedElementIds[] = $groupElement->id;
+                }
+                $order++;
+            }
+
+            // If target order is at the end, add moved element at the end
+            if (!$movedElementOrdered) {
+                $element->order = $order;
+                $element->save();
+            }
+
+            // Update orders in old parent group if parent changed
+            // (if parent didn't change, the group was already updated above)
+            if ($oldParentId != $newParentId && $oldParentId !== null) {
+                $oldGroupElements = Element::where('user_id', $userId)
+                    ->where('parent_element_id', $oldParentId)
+                    ->orderBy('order', 'asc')
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                $order = 1;
+                foreach ($oldGroupElements as $oldGroupElement) {
+                    if ($oldGroupElement->order != $order) {
+                        $oldGroupElement->order = $order;
+                        $oldGroupElement->save();
+                        $affectedElementIds[] = $oldGroupElement->id;
+                    }
+                    $order++;
+                }
+            }
+
+            DB::commit();
+
+            // Return all affected elements
+            $affectedElements = Element::where('user_id', $userId)
+                ->whereIn('id', array_unique($affectedElementIds))
+                ->orderBy('parent_element_id', 'asc')
+                ->orderBy('order', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            return response()->json([
+                'message' => 'Element moved successfully',
+                'elements' => $affectedElements
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => 'Failed to move element: ' . $e->getMessage()], 500);
+        }
+    }
 }
 

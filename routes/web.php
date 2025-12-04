@@ -19,6 +19,7 @@ Route::prefix('api')->group(function () {
     Route::middleware('auth')->group(function () {
         // Custom routes must be defined BEFORE apiResource to avoid route conflicts
         Route::put('elements/reorder', [ElementController::class, 'reorder'])->name('elements.reorder');
+        Route::put('elements/move', [ElementController::class, 'move'])->name('elements.move');
         Route::post('elements/{id}/archive', [ElementController::class, 'archive'])->name('elements.archive');
         Route::post('elements/{id}/restore', [ElementController::class, 'restore'])->name('elements.restore');
         Route::delete('elements/{id}/force', [ElementController::class, 'forceDelete'])->name('elements.force-delete');

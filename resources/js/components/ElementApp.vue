@@ -1042,6 +1042,104 @@ export default {
       this.elements = newElements;
     },
     /**
+     * Calculate target order in the new parent group based on drop position
+     * @param {Object} originalElement - The element being moved
+     * @param {number|null} newParentId - The new parent ID
+     * @param {number} actualDropIndex - The drop index in hierarchicalElements
+     * @returns {number} - The target order in the new group
+     */
+    calculateTargetOrder(originalElement, newParentId, actualDropIndex) {
+      // Get all elements that will be in the new parent group (excluding the moved element)
+      const newGroupElements = this.elements.filter(e => 
+        e.id !== originalElement.id && e.parent_element_id === newParentId
+      );
+
+      // Find the target element in hierarchicalElements
+      const targetElement = actualDropIndex < this.hierarchicalElements.length 
+        ? this.hierarchicalElements[actualDropIndex] 
+        : null;
+
+      if (!targetElement) {
+        // Dropping at the end
+        return newGroupElements.length + 1;
+      }
+
+      // Find the target element in the new group
+      const targetInGroup = newGroupElements.find(e => e.id === targetElement.id);
+      if (!targetInGroup) {
+        // Target element is not in the new group (shouldn't happen, but fallback)
+        return newGroupElements.length + 1;
+      }
+
+      // Find the index of target element in the new group
+      const targetIndexInGroup = newGroupElements.findIndex(e => e.id === targetElement.id);
+      
+      // The target order is the position in the group (1-based)
+      return targetIndexInGroup + 1;
+    },
+    /**
+     * Move element atomically using the new move API endpoint
+     * This ensures parent change and reordering happen in one transaction
+     * and DOM updates happen in a single action
+     * @param {Object} originalElement - The element to move
+     * @param {number|null} newParentId - The new parent ID
+     * @param {number} actualDropIndex - The drop index in hierarchicalElements
+     */
+    async moveElementAtomically(originalElement, newParentId, actualDropIndex) {
+      try {
+        // Calculate target order in the new parent group
+        const targetOrder = this.calculateTargetOrder(originalElement, newParentId, actualDropIndex);
+
+        // Call the move API endpoint
+        const response = await axios.put('/api/elements/move', {
+          element_id: originalElement.id,
+          new_parent_id: newParentId,
+          target_order: targetOrder
+        });
+
+        // Update local state with all affected elements from server response
+        // This ensures DOM updates happen in a single action
+        if (response.data.elements && Array.isArray(response.data.elements)) {
+          // Create a map of updated elements for quick lookup
+          const updatedElementsMap = new Map(
+            response.data.elements.map(e => [e.id, e])
+          );
+
+          // Update affected elements in place
+          for (let i = 0; i < this.elements.length; i++) {
+            const element = this.elements[i];
+            if (updatedElementsMap.has(element.id)) {
+              // Update existing element with server data
+              Object.assign(this.elements[i], updatedElementsMap.get(element.id));
+            }
+          }
+
+          // Re-sort elements array to match the new order
+          // This ensures the DOM updates in a single action with correct order
+          this.elements.sort((a, b) => {
+            // First by parent_element_id (null first)
+            if (a.parent_element_id !== b.parent_element_id) {
+              if (a.parent_element_id === null) return -1;
+              if (b.parent_element_id === null) return 1;
+              return a.parent_element_id - b.parent_element_id;
+            }
+            // Then by order
+            if (a.order !== b.order) {
+              return (a.order || 0) - (b.order || 0);
+            }
+            // Finally by created_at
+            return new Date(a.created_at) - new Date(b.created_at);
+          });
+        } else {
+          // Fallback: reload all elements if response format is unexpected
+          await this.loadElements();
+        }
+      } catch (error) {
+        await this.handleError(error, 'failedUpdate', true);
+        throw error;
+      }
+    },
+    /**
      * Update parent and order after element move
      * @param {Object} originalElement - The moved element
      * @param {number|null} newParentId - The new parent ID
@@ -1616,13 +1714,11 @@ export default {
       // Determine the new parent based on drop position
       const newParentId = this.determineParentFromDropPosition(actualDropIndex);
 
-      // Calculate insertion index and move element in array
-      const insertIndex = this.calculateInsertIndex(originalElement, actualDropIndex);
-      this.moveElementInArray(originalElement, insertIndex);
-
-      // Update parent and order
+      // Move element atomically using the new move API endpoint
+      // This ensures parent change and reordering happen in one transaction
+      // and DOM updates happen in a single action
       try {
-        await this.updateParentAndOrder(originalElement, newParentId);
+        await this.moveElementAtomically(originalElement, newParentId, actualDropIndex);
       } catch (error) {
         this.dragOverIndex = null;
         return;
