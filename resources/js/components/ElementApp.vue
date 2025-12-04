@@ -85,6 +85,9 @@
                 @archive="archiveElement"
                 @restore="restoreElement"
                 @remove="removeElement"
+                @toggle-collapse="toggleCollapse"
+                :has-children="hasChildren(element.id)"
+                :is-collapsed="collapsedElements[element.id]"
               />
             </template>
           </transition-group>
@@ -168,6 +171,7 @@ export default {
       confirmAction: null, // 'archive' or 'remove'
       confirmMessage: '', // Confirmation message
       pendingElementId: null, // ID of element pending confirmation
+      collapsedElements: {}, // Object mapping element IDs to collapse state (reactive)
     };
   },
   computed: {
@@ -196,9 +200,26 @@ export default {
       const result = [];
       const processed = new Set();
 
+      // Helper function to check if any parent is collapsed
+      const isAnyParentCollapsed = (elementId) => {
+        const element = this.filteredElements.find(e => e.id === elementId);
+        if (!element || !element.parent_element_id) {
+          return false;
+        }
+        if (this.collapsedElements[element.parent_element_id]) {
+          return true;
+        }
+        return isAnyParentCollapsed(element.parent_element_id);
+      };
+
       // Helper function to add element and its children recursively
       const addElementAndChildren = (element, level = 0) => {
         if (processed.has(element.id)) {
+          return;
+        }
+
+        // Skip element if any of its parents is collapsed
+        if (isAnyParentCollapsed(element.id)) {
           return;
         }
 
@@ -209,13 +230,16 @@ export default {
         });
         processed.add(element.id);
 
-        // Find and add children, sorted by order
-        const children = this.filteredElements
-          .filter(e => e.parent_element_id === element.id)
-          .sort((a, b) => (a.order || 0) - (b.order || 0));
-        children.forEach(child => {
-          addElementAndChildren(child, level + 1);
-        });
+        // Only add children if element is not collapsed
+        if (!this.collapsedElements[element.id]) {
+          // Find and add children, sorted by order
+          const children = this.filteredElements
+            .filter(e => e.parent_element_id === element.id)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+          children.forEach(child => {
+            addElementAndChildren(child, level + 1);
+          });
+        }
       };
 
       // First, add all root elements (those without parent), sorted by order
@@ -889,6 +913,25 @@ export default {
       this.confirmAction = null;
       this.confirmMessage = '';
       this.pendingElementId = null;
+    },
+    /**
+     * Check if element has children
+     * @param {number} elementId - The element ID
+     * @returns {boolean} - True if element has children
+     */
+    hasChildren(elementId) {
+      return this.filteredElements.some(e => e.parent_element_id === elementId);
+    },
+    /**
+     * Toggle collapse state for an element
+     * @param {number} elementId - The element ID to toggle
+     */
+    toggleCollapse(elementId) {
+      // Toggle collapse state - create new object to ensure reactivity
+      this.collapsedElements = {
+        ...this.collapsedElements,
+        [elementId]: !this.collapsedElements[elementId]
+      };
     },
 
     async setParentElement(elementId, parentId) {

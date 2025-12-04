@@ -64,14 +64,30 @@
         </div>
       </div>
       <div v-else>
-        <h3 
-          :class="[
-            'text-lg font-medium',
-            element.completed ? 'line-through text-gray-500' : 'text-gray-800'
-          ]"
-        >
-          {{ element.title }}
-        </h3>
+        <div class="flex items-center">
+          <!-- Collapse/Expand Icon (only for elements with children) -->
+          <button
+            v-if="hasChildren"
+            @click.stop="$emit('toggle-collapse', element.id)"
+            class="mr-2 text-gray-500 hover:text-gray-700 transition-transform duration-200 flex-shrink-0"
+            :class="{ 'rotate-90': !isCollapsed }"
+            title="Toggle children"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+          <h3 
+            @click="hasChildren && $emit('toggle-collapse', element.id)"
+            :class="[
+              'text-lg font-medium flex-1',
+              element.completed ? 'line-through text-gray-500' : 'text-gray-800',
+              hasChildren ? 'cursor-pointer hover:text-blue-600' : ''
+            ]"
+          >
+            {{ element.title }}
+          </h3>
+        </div>
         <p 
           v-if="element.description"
           :class="[
@@ -166,6 +182,14 @@ export default {
     formatDate: {
       type: Function,
       required: true
+    },
+    hasChildren: {
+      type: Boolean,
+      default: false
+    },
+    isCollapsed: {
+      type: Boolean,
+      default: false
     }
   },
   emits: [
@@ -180,7 +204,8 @@ export default {
     'cancel-edit',
     'archive',
     'restore',
-    'remove'
+    'remove',
+    'toggle-collapse'
   ],
   computed: {
     combinedStyles() {
