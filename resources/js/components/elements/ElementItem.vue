@@ -8,6 +8,7 @@
     @drop="$emit('drop', $event, index)"
     @dragend="$emit('drag-end')"
     :style="combinedStyles"
+    class="relative"
     :class="[
       elementClasses,
       'flex items-center p-4 rounded-lg transition-all duration-300 ease-in-out border border-gray-300',
@@ -64,30 +65,14 @@
         </div>
       </div>
       <div v-else>
-        <div class="flex items-center">
-          <!-- Collapse/Expand Icon (only for elements with children) -->
-          <button
-            v-if="hasChildren"
-            @click.stop="$emit('toggle-collapse', element.id)"
-            class="mr-2 text-gray-500 hover:text-gray-700 transition-transform duration-200 flex-shrink-0"
-            :class="{ 'rotate-90': !isCollapsed }"
-            title="Toggle children"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <h3 
-            @click="hasChildren && $emit('toggle-collapse', element.id)"
-            :class="[
-              'text-lg font-medium flex-1',
-              element.completed ? 'line-through text-gray-500' : 'text-gray-800',
-              hasChildren ? 'cursor-pointer hover:text-blue-600' : ''
-            ]"
-          >
-            {{ element.title }}
-          </h3>
-        </div>
+        <h3 
+          :class="[
+            'text-lg font-medium',
+            element.completed ? 'line-through text-gray-500' : 'text-gray-800'
+          ]"
+        >
+          {{ element.title }}
+        </h3>
         <p 
           v-if="element.description"
           :class="[
@@ -102,6 +87,21 @@
         </p>
       </div>
     </div>
+    
+    <!-- Collapse/Expand Button (only for elements with children) - centered across full element width -->
+    <!-- Positioned absolutely relative to root element to center across entire gray box, on same line as date -->
+    <button
+      v-if="hasChildren"
+      @click.stop="$emit('toggle-collapse', element.id)"
+      class="absolute left-1/2 transform -translate-x-1/2 w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-600 hover:text-gray-800 flex items-center justify-center transition-all duration-200 flex-shrink-0 z-10"
+      :class="{ 'rotate-90': !isCollapsed }"
+      title="Toggle children"
+      style="bottom: 1rem;"
+    >
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
     
     <!-- Actions -->
     <div v-if="editingElement?.id !== element.id" class="flex space-x-2 ml-4">
