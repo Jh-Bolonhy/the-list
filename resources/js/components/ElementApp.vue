@@ -1945,6 +1945,18 @@ export default {
   transition: gap 0.3s ease-in-out;
 }
 
+/* Ensure all list items maintain their width and margins during collapse animation */
+/* Elements should keep their natural width (which already accounts for margin-left via inline styles) */
+.space-y-3 > * {
+  box-sizing: border-box;
+  /* Prevent flex items from expanding beyond their natural width */
+  flex-shrink: 1;
+  min-width: 0;
+  /* Don't set width or max-width - let elements maintain their natural width with margin-left */
+  /* Ensure elements don't expand beyond container during transitions */
+  align-self: flex-start;
+}
+
 .list-enter-from {
   opacity: 0;
   transform: translateY(-1.25rem); /* 20px = 1.25rem */
@@ -1957,9 +1969,15 @@ export default {
 
 .list-leave-active {
   /* Keep element in flow to allow container to resize smoothly */
-  width: 100%;
+  /* Don't set width: 100% - it causes elements to expand beyond their margins */
+  /* Elements should maintain their natural width (which already accounts for margin-left) */
   transition: all 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease-in-out, height 0.3s ease-in-out, margin 0.3s ease-in-out;
   /* Don't use position: absolute to allow smooth height transitions */
+  /* Preserve element's original width and margins during collapse animation */
+  box-sizing: border-box;
+  /* Ensure flex items don't expand beyond their container */
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 /* Smooth height transition for list container when elements collapse/expand */
@@ -1968,6 +1986,7 @@ export default {
   /* Use max-height for smooth animation (height: auto doesn't animate) */
   transition: max-height 0.3s ease-in-out;
   max-height: 99999px; /* Large value to accommodate all elements */
+  overflow: hidden; /* Prevent elements from expanding beyond container during animation */
 }
 
 /* White background container - minimum height equals viewport height minus top/bottom padding */
