@@ -331,5 +331,24 @@ class ElementController extends Controller
             return response()->json(['error' => 'Failed to move element: ' . $e->getMessage()], 500);
         }
     }
+
+    /**
+     * Toggle collapsed state for an element
+     */
+    public function toggleCollapse(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'collapsed' => 'required|boolean',
+        ]);
+
+        $element = Element::where('user_id', Auth::id())->findOrFail($id);
+        $element->collapsed = $request->input('collapsed');
+        $element->save();
+
+        return response()->json([
+            'message' => 'Collapse state updated successfully',
+            'element' => $element
+        ]);
+    }
 }
 

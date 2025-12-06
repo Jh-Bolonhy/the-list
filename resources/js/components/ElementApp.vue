@@ -713,6 +713,15 @@ export default {
         // Always load all elements - filtering is done by computed property
         const response = await axios.get('/api/elements');
         this.elements = response.data;
+        
+        // Load collapsed state from elements
+        const collapsedState = {};
+        this.elements.forEach(element => {
+          if (element.collapsed === true) {
+            collapsedState[element.id] = true;
+          }
+        });
+        this.collapsedElements = collapsedState;
       } catch (error) {
         this.handleError(error, 'failedLoad', false);
       } finally {
@@ -927,12 +936,36 @@ export default {
      * Toggle collapse state for an element
      * @param {number} elementId - The element ID to toggle
      */
-    toggleCollapse(elementId) {
-      // Toggle collapse state - create new object to ensure reactivity
+    async toggleCollapse(elementId) {
+      // Get current collapsed state
+      const newCollapsedState = !this.collapsedElements[elementId];
+      
+      // Update local state immediately for responsive UI
       this.collapsedElements = {
         ...this.collapsedElements,
-        [elementId]: !this.collapsedElements[elementId]
+        [elementId]: newCollapsedState
       };
+      
+      // Save to database
+      try {
+        await axios.put(`/api/elements/${elementId}/toggle-collapse`, {
+          collapsed: newCollapsedState
+        });
+        
+        // Update element in local array
+        const element = this.elements.find(e => e.id === elementId);
+        if (element) {
+          element.collapsed = newCollapsedState;
+        }
+      } catch (error) {
+        // Revert on error
+        this.collapsedElements = {
+          ...this.collapsedElements,
+          [elementId]: !newCollapsedState
+        };
+        console.error('Error saving collapse state:', error);
+        await this.handleError(error, 'failedUpdate', false);
+      }
     },
     /**
      * Preserve element width before it becomes absolutely positioned

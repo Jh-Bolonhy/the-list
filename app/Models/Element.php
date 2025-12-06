@@ -15,12 +15,14 @@ class Element extends Model
         'title',
         'description',
         'completed',
-        'archived'
+        'archived',
+        'collapsed'
     ];
 
     protected $casts = [
         'completed' => 'boolean',
-        'archived' => 'boolean'
+        'archived' => 'boolean',
+        'collapsed' => 'boolean'
     ];
 
     /**
