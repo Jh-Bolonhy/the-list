@@ -2002,6 +2002,7 @@ export default {
   transition: max-height 0.3s ease-in-out;
   max-height: 99999px; /* Large value to accommodate all elements */
   overflow: hidden; /* Prevent elements from expanding beyond container during animation */
+  padding-top: 3px; /* Ensure top border of first element is visible */
 }
 
 /* White background container - minimum height equals viewport height minus top/bottom padding */
