@@ -6,38 +6,38 @@
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" width="100" height="100" class="opacity-20">
           <!-- Letter T (top) -->
           <!-- Horizontal bar of T -->
-          <line x1="53.5" y1="62.25" x2="396.5" y2="62.25" 
+          <line x1="70.77505" y1="62.2498" x2="396.49999" y2="62.2498" 
                 stroke="white" 
                 stroke-width="20" 
                 stroke-linecap="round"/>
           <!-- Vertical bar of T -->
-          <line x1="147.775" y1="72.25" x2="147.775" y2="292.25" 
+          <line x1="148.77505" y1="72.2498" x2="147.77505" y2="292.24979" 
                 stroke="white" 
                 stroke-width="20" 
                 stroke-linecap="round"/>
           
           <!-- List items between T and L -->
-          <line x1="186.775" y1="144.25" x2="394.775" y2="144.25" 
+          <line x1="214.77505" y1="144.2498" x2="394.77506" y2="144.2498" 
                 stroke="white" 
                 stroke-width="20" 
                 stroke-linecap="round"/>
-          <line x1="230.775" y1="209.25" x2="393.775" y2="209.25" 
+          <line x1="271.77505" y1="209.2498" x2="393.77505" y2="209.2498" 
                 stroke="white" 
                 stroke-width="20" 
                 stroke-linecap="round"/>
-          <line x1="229.775" y1="278.25" x2="392.775" y2="278.25" 
+          <line x1="271.77506" y1="278.2498" x2="392.77506" y2="278.2498" 
                 stroke="white" 
                 stroke-width="20" 
                 stroke-linecap="round"/>
           
           <!-- Letter L (bottom) -->
           <!-- Vertical bar of L -->
-          <line x1="68.775" y1="133.25" x2="68.775" y2="367.25" 
+          <line x1="70.77505" y1="348.24979" x2="68.77505" y2="133.2498" 
                 stroke="white" 
                 stroke-width="20" 
                 stroke-linecap="round"/>
           <!-- Horizontal bar of L -->
-          <line x1="79.775" y1="357.25" x2="392.775" y2="357.25" 
+          <line x1="70.77505" y1="357.24982" x2="392.77506" y2="357.24982" 
                 stroke="white" 
                 stroke-width="20" 
                 stroke-linecap="round"/>
@@ -604,7 +604,7 @@ export default {
           // Sync locale and show_mode
           const currentLang = localStorage.getItem('lang') || 'en';
           await this.syncLocale(currentLang);
-          
+
           const currentViewMode = localStorage.getItem('viewMode') || 'active';
           await this.syncShowMode(currentViewMode);
 
@@ -660,7 +660,7 @@ export default {
           this.lang = locale;
           localStorage.setItem('lang', locale);
         }
-        
+
         const currentViewMode = localStorage.getItem('viewMode') || 'active';
         await this.syncShowMode(currentViewMode);
 
@@ -699,7 +699,7 @@ export default {
         // Sync locale and show_mode
         const currentLang = localStorage.getItem('lang') || 'en';
         await this.syncLocale(currentLang);
-        
+
         const currentViewMode = localStorage.getItem('viewMode') || 'active';
         await this.syncShowMode(currentViewMode);
 
@@ -756,7 +756,7 @@ export default {
         // Always load all elements - filtering is done by computed property
         const response = await axios.get('/api/elements');
         this.elements = response.data;
-        
+
         // Load collapsed state from elements
         const collapsedState = {};
         this.elements.forEach(element => {
@@ -779,7 +779,7 @@ export default {
      */
     async updateElementOrderInGroup(parentId) {
       const groupElements = this.elements.filter(e => e.parent_element_id === parentId);
-      
+
       if (groupElements.length === 0) {
         return true; // No elements to update
       }
@@ -982,19 +982,19 @@ export default {
     async toggleCollapse(elementId) {
       // Get current collapsed state
       const newCollapsedState = !this.collapsedElements[elementId];
-      
+
       // Update local state immediately for responsive UI
       this.collapsedElements = {
         ...this.collapsedElements,
         [elementId]: newCollapsedState
       };
-      
+
       // Save to database
       try {
         await axios.put(`/api/elements/${elementId}/toggle-collapse`, {
           collapsed: newCollapsedState
         });
-        
+
         // Update element in local array
         const element = this.elements.find(e => e.id === elementId);
         if (element) {
@@ -1160,16 +1160,16 @@ export default {
     moveElementInArray(originalElement, insertIndex) {
       const newElements = [...this.elements];
       const originalIndex = this.elements.findIndex(e => e.id === originalElement.id);
-      
+
       // Remove the dragged element from its original position
       newElements.splice(originalIndex, 1);
-      
+
       // Adjust insertIndex if element was removed before target position
       const adjustedInsertIndex = originalIndex < insertIndex ? insertIndex - 1 : insertIndex;
-      
+
       // Insert it at the new position
       newElements.splice(adjustedInsertIndex, 0, originalElement);
-      
+
       // Update local state first for immediate UI feedback
       this.elements = newElements;
     },
@@ -1182,13 +1182,13 @@ export default {
      */
     calculateTargetOrder(originalElement, newParentId, actualDropIndex) {
       // Get all elements that will be in the new parent group (excluding the moved element)
-      const newGroupElements = this.elements.filter(e => 
+      const newGroupElements = this.elements.filter(e =>
         e.id !== originalElement.id && e.parent_element_id === newParentId
       );
 
       // Find the target element in hierarchicalElements
-      const targetElement = actualDropIndex < this.hierarchicalElements.length 
-        ? this.hierarchicalElements[actualDropIndex] 
+      const targetElement = actualDropIndex < this.hierarchicalElements.length
+        ? this.hierarchicalElements[actualDropIndex]
         : null;
 
       if (!targetElement) {
@@ -1205,7 +1205,7 @@ export default {
 
       // Find the index of target element in the new group
       const targetIndexInGroup = newGroupElements.findIndex(e => e.id === targetElement.id);
-      
+
       // The target order is the position in the group (1-based)
       return targetIndexInGroup + 1;
     },
@@ -1278,7 +1278,7 @@ export default {
      */
     async updateParentAndOrder(originalElement, newParentId) {
       const parentChanged = originalElement.parent_element_id !== newParentId;
-      
+
       if (parentChanged) {
         try {
           await axios.put(`/api/elements/${originalElement.id}`, {
@@ -1306,7 +1306,7 @@ export default {
         // Parent didn't change, just update order in the same group
         const parentId = originalElement.parent_element_id;
         const success = await this.updateElementOrderInGroup(parentId);
-        
+
         if (!success) {
           // Revert to original order on error
           await this.handleError(new Error('Failed to update order'), 'failedUpdate', true);
@@ -1539,7 +1539,7 @@ export default {
       if (!element) return false;
       const elementRect = element.getBoundingClientRect();
       const thirdHeight = elementRect.height / 3;
-      
+
       if (prevElement) {
         const prevRect = prevElement.getBoundingClientRect();
         const prevLowerThirdStart = prevRect.bottom - prevRect.height / 3;
@@ -1547,7 +1547,7 @@ export default {
           return true;
         }
       }
-      
+
       if (nextElement) {
         const nextRect = nextElement.getBoundingClientRect();
         const nextUpperThirdEnd = nextRect.top + nextRect.height / 3;
@@ -1555,7 +1555,7 @@ export default {
           return true;
         }
       }
-      
+
       return false;
     },
     handleDocumentDragOver(event) {
@@ -1651,7 +1651,7 @@ export default {
             // Check if we're not in a 'between' zone
             const prevElement = i > 0 ? elementArray[i - 1] : null;
             const nextElement = i < elementArray.length - 1 ? elementArray[i + 1] : null;
-            
+
             if (!this.isMouseInBetweenZone(mouseY, element, prevElement, nextElement)) {
               this.hoverElementIndex = hierarchicalIndex;
               this.hoverElementPart = 'middle';
@@ -1752,7 +1752,7 @@ export default {
         if (this.checkMouseInMiddleThird(mouseY, event.currentTarget)) {
           const prevElement = currentElementIndex > 0 ? elementArray[currentElementIndex - 1] : null;
           const nextElement = currentElementIndex < elementArray.length - 1 ? elementArray[currentElementIndex + 1] : null;
-          
+
           if (!this.isMouseInBetweenZone(mouseY, event.currentTarget, prevElement, nextElement)) {
             this.hoverElementIndex = index;
             this.hoverElementPart = 'middle';
