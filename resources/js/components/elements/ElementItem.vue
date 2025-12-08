@@ -37,7 +37,7 @@
     />
     
     <!-- Element Content -->
-    <div class="flex-1 pr-32 overflow-hidden min-w-0">
+    <div class="flex-1 pr-32 overflow-hidden min-w-0 relative">
       <div v-if="editingElement?.id === element.id" class="space-y-2">
         <input
           v-model="editingElement.title"
@@ -64,25 +64,44 @@
           </button>
         </div>
       </div>
-      <div v-else class="overflow-hidden">
-        <h3 
-          :class="[
-            'text-lg font-medium whitespace-nowrap overflow-hidden text-ellipsis',
-            element.completed ? 'line-through text-gray-500' : 'text-gray-800'
-          ]"
-        >
-          {{ element.title }}
-        </h3>
-        <p 
-          v-if="element.description"
-          :class="[
-            'text-gray-600 mt-1 whitespace-nowrap overflow-hidden text-ellipsis',
-            element.completed ? 'line-through' : ''
-          ]"
-        >
-          {{ element.description }}
-        </p>
-        <p class="text-xs text-gray-400 mt-2 whitespace-nowrap overflow-hidden text-ellipsis">
+      <div v-else class="overflow-hidden relative">
+        <div class="relative">
+          <h3 
+            :class="[
+              'text-lg font-medium whitespace-nowrap overflow-hidden',
+              element.completed ? 'line-through text-gray-500' : 'text-gray-800'
+            ]"
+          >
+            {{ element.title }}
+          </h3>
+          <!-- Gradient fade overlay for title -->
+          <div 
+            class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
+            :style="{
+              width: '2.25rem',
+              background: `linear-gradient(to right, transparent, ${element.archived ? '#e5e7eb' : '#f9fafb'})`
+            }"
+          ></div>
+        </div>
+        <div v-if="element.description" class="relative mt-1">
+          <p 
+            :class="[
+              'text-gray-600 whitespace-nowrap overflow-hidden',
+              element.completed ? 'line-through' : ''
+            ]"
+          >
+            {{ element.description }}
+          </p>
+          <!-- Gradient fade overlay for description -->
+          <div 
+            class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
+            :style="{
+              width: '2.25rem',
+              background: `linear-gradient(to right, transparent, ${element.archived ? '#e5e7eb' : '#f9fafb'})`
+            }"
+          ></div>
+        </div>
+        <p class="text-xs text-gray-400 mt-2 whitespace-nowrap overflow-hidden">
           {{ t('created') }}: {{ formatDate(element.created_at) }}
         </p>
       </div>
