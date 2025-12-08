@@ -2,8 +2,8 @@
   <div class="min-h-screen py-8" style="background-color: #4F46E5;">
     <div class="max-w-4xl mx-auto px-4 relative">
       <!-- Large Icon on the left -->
-      <div v-if="user" class="absolute -left-24 top-8 hidden xl:block">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" width="100" height="100" class="opacity-20">
+      <div v-if="user" class="absolute -left-24 top-6 hidden xl:block flex items-center" style="height: 48px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" width="48" height="48" class="opacity-20">
           <!-- Letter T (top) -->
           <!-- Horizontal bar of T -->
           <line x1="70.77505" y1="62.2498" x2="396.49999" y2="62.2498" 

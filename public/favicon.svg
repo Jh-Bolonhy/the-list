@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450">
+  <!-- Letter T (top) -->
+  <!-- Horizontal bar of T -->
+  <line x1="70.77505" y1="62.2498" x2="396.49999" y2="62.2498" 
+        stroke="#000" 
+        stroke-width="20" 
+        stroke-linecap="round"/>
+  <!-- Vertical bar of T -->
+  <line x1="148.77505" y1="72.2498" x2="147.77505" y2="292.24979" 
+        stroke="#000" 
+        stroke-width="20" 
+        stroke-linecap="round"/>
+  
+  <!-- List items between T and L -->
+  <line x1="214.77505" y1="144.2498" x2="394.77506" y2="144.2498" 
+        stroke="#000" 
+        stroke-width="20" 
+        stroke-linecap="round"/>
+  <line x1="271.77505" y1="209.2498" x2="393.77505" y2="209.2498" 
+        stroke="#000" 
+        stroke-width="20" 
+        stroke-linecap="round"/>
+  <line x1="271.77506" y1="278.2498" x2="392.77506" y2="278.2498" 
+        stroke="#000" 
+        stroke-width="20" 
+        stroke-linecap="round"/>
+  
+  <!-- Letter L (bottom) -->
+  <!-- Vertical bar of L -->
+  <line x1="70.77505" y1="348.24979" x2="68.77505" y2="133.2498" 
+        stroke="#000" 
+        stroke-width="20" 
+        stroke-linecap="round"/>
+  <!-- Horizontal bar of L -->
+  <line x1="70.77505" y1="357.24982" x2="392.77506" y2="357.24982" 
+        stroke="#000" 
+        stroke-width="20" 
+        stroke-linecap="round"/>
+</svg>
