@@ -1,6 +1,49 @@
 ﻿<template>
-  <div class="min-h-screen bg-gray-100 py-8">
-    <div class="max-w-4xl mx-auto px-4">
+  <div class="min-h-screen py-8" style="background-color: #4F46E5;">
+    <div class="max-w-4xl mx-auto px-4 relative">
+      <!-- Large Icon on the left -->
+      <div v-if="user" class="absolute -left-24 top-8 hidden xl:block">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" width="100" height="100" class="opacity-20">
+          <!-- Letter T (top) -->
+          <!-- Horizontal bar of T -->
+          <line x1="53.5" y1="62.25" x2="396.5" y2="62.25" 
+                stroke="white" 
+                stroke-width="20" 
+                stroke-linecap="round"/>
+          <!-- Vertical bar of T -->
+          <line x1="147.775" y1="72.25" x2="147.775" y2="292.25" 
+                stroke="white" 
+                stroke-width="20" 
+                stroke-linecap="round"/>
+          
+          <!-- List items between T and L -->
+          <line x1="186.775" y1="144.25" x2="394.775" y2="144.25" 
+                stroke="white" 
+                stroke-width="20" 
+                stroke-linecap="round"/>
+          <line x1="230.775" y1="209.25" x2="393.775" y2="209.25" 
+                stroke="white" 
+                stroke-width="20" 
+                stroke-linecap="round"/>
+          <line x1="229.775" y1="278.25" x2="392.775" y2="278.25" 
+                stroke="white" 
+                stroke-width="20" 
+                stroke-linecap="round"/>
+          
+          <!-- Letter L (bottom) -->
+          <!-- Vertical bar of L -->
+          <line x1="68.775" y1="133.25" x2="68.775" y2="367.25" 
+                stroke="white" 
+                stroke-width="20" 
+                stroke-linecap="round"/>
+          <!-- Horizontal bar of L -->
+          <line x1="79.775" y1="357.25" x2="392.775" y2="357.25" 
+                stroke="white" 
+                stroke-width="20" 
+                stroke-linecap="round"/>
+        </svg>
+      </div>
+
       <!-- Authentication Forms -->
       <AuthForms
         v-if="!user"
