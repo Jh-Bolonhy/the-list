@@ -37,7 +37,7 @@
     />
     
     <!-- Element Content -->
-    <div class="flex-1">
+    <div class="flex-1 pr-32 overflow-hidden min-w-0">
       <div v-if="editingElement?.id === element.id" class="space-y-2">
         <input
           v-model="editingElement.title"
@@ -64,10 +64,10 @@
           </button>
         </div>
       </div>
-      <div v-else>
+      <div v-else class="overflow-hidden">
         <h3 
           :class="[
-            'text-lg font-medium',
+            'text-lg font-medium whitespace-nowrap overflow-hidden text-ellipsis',
             element.completed ? 'line-through text-gray-500' : 'text-gray-800'
           ]"
         >
@@ -76,13 +76,13 @@
         <p 
           v-if="element.description"
           :class="[
-            'text-gray-600 mt-1',
+            'text-gray-600 mt-1 whitespace-nowrap overflow-hidden text-ellipsis',
             element.completed ? 'line-through' : ''
           ]"
         >
           {{ element.description }}
         </p>
-        <p class="text-xs text-gray-400 mt-2">
+        <p class="text-xs text-gray-400 mt-2 whitespace-nowrap overflow-hidden text-ellipsis">
           {{ t('created') }}: {{ formatDate(element.created_at) }}
         </p>
       </div>
@@ -104,18 +104,18 @@
     </button>
     
     <!-- Actions -->
-    <div v-if="editingElement?.id !== element.id" class="flex space-x-2 ml-4">
+    <div v-if="editingElement?.id !== element.id" class="absolute right-4 top-1/2 transform -translate-y-1/2 w-28 flex flex-col space-y-2 z-20">
       <!-- Actions for active (non-archived) elements -->
       <template v-if="!element.archived">
         <button
           @click="$emit('start-edit', element)"
-          class="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm transition-all duration-300 ease-in-out"
+          class="w-full px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm transition-all duration-300 ease-in-out"
         >
           {{ t('edit') }}
         </button>
         <button
           @click="$emit('archive', element.id)"
-          class="px-3 py-1 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium transition-all duration-300 ease-in-out"
+          class="w-full px-3 py-1 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 text-sm font-medium transition-all duration-300 ease-in-out"
         >
           {{ t('archive') }}
         </button>
@@ -124,13 +124,13 @@
       <template v-else>
         <button
           @click="$emit('restore', element.id)"
-          class="px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm transition-all duration-300 ease-in-out"
+          class="w-full px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 text-sm transition-all duration-300 ease-in-out"
         >
           {{ t('restore') }}
         </button>
         <button
           @click="$emit('remove', element.id)"
-          class="px-3 py-1 bg-pink-600 text-white rounded-md hover:bg-pink-700 text-sm transition-all duration-300 ease-in-out"
+          class="w-full px-3 py-1 bg-pink-600 text-white rounded-md hover:bg-pink-700 text-sm transition-all duration-300 ease-in-out"
         >
           {{ t('remove') }}
         </button>
