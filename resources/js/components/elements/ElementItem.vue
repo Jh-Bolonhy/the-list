@@ -66,14 +66,22 @@
       </div>
       <div v-else class="overflow-hidden relative">
         <div class="relative">
-          <h3 
-            :class="[
-              'text-lg font-medium whitespace-nowrap overflow-hidden',
-              element.completed ? 'line-through text-gray-500' : 'text-gray-800'
-            ]"
+          <div
+            ref="titleScrollContainer"
+            class="scrollable-text-container"
+            @mousedown="startScroll($event, 'title')"
           >
-            {{ element.title }}
-          </h3>
+            <h3 
+              ref="titleText"
+              :class="[
+                'text-lg font-medium whitespace-nowrap',
+                element.completed ? 'line-through text-gray-500' : 'text-gray-800',
+                isScrollingTitle ? 'cursor-grabbing' : 'cursor-grab'
+              ]"
+            >
+              {{ element.title }}
+            </h3>
+          </div>
           <!-- Gradient fade overlay for title -->
           <div 
             class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
@@ -84,14 +92,22 @@
           ></div>
         </div>
         <div v-if="element.description" class="relative mt-1">
-          <p 
-            :class="[
-              'text-gray-600 whitespace-nowrap overflow-hidden',
-              element.completed ? 'line-through' : ''
-            ]"
+          <div
+            ref="descriptionScrollContainer"
+            class="scrollable-text-container"
+            @mousedown="startScroll($event, 'description')"
           >
-            {{ element.description }}
-          </p>
+            <p 
+              ref="descriptionText"
+              :class="[
+                'text-gray-600 whitespace-nowrap',
+                element.completed ? 'line-through' : '',
+                isScrollingDescription ? 'cursor-grabbing' : 'cursor-grab'
+              ]"
+            >
+              {{ element.description }}
+            </p>
+          </div>
           <!-- Gradient fade overlay for description -->
           <div 
             class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
@@ -226,7 +242,23 @@ export default {
     'remove',
     'toggle-collapse'
   ],
+  data() {
+    return {
+      scrollState: {
+        isActive: false,
+        type: null, // 'title' or 'description'
+        startX: 0,
+        startScrollLeft: 0
+      }
+    };
+  },
   computed: {
+    isScrollingTitle() {
+      return this.scrollState.isActive && this.scrollState.type === 'title';
+    },
+    isScrollingDescription() {
+      return this.scrollState.isActive && this.scrollState.type === 'description';
+    },
     combinedStyles() {
       const indentAmount = this.element.level > 0 ? this.element.level * 1.25 : 0;
       const styles = {
@@ -260,7 +292,128 @@ export default {
       
       return styles;
     }
+  },
+  methods: {
+    getScrollRefs(type) {
+      const refsMap = {
+        title: {
+          container: this.$refs.titleScrollContainer,
+          text: this.$refs.titleText
+        },
+        description: {
+          container: this.$refs.descriptionScrollContainer,
+          text: this.$refs.descriptionText
+        }
+      };
+      return refsMap[type] || {};
+    },
+    startScroll(event, type) {
+      const refs = this.getScrollRefs(type);
+      const { container, text } = refs;
+      
+      if (!container || !text) return;
+      
+      // Check if text overflows
+      if (text.scrollWidth <= container.clientWidth) {
+        return; // Text fits, no need to scroll
+      }
+      
+      // Prevent default to avoid text selection
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Set scroll state
+      this.scrollState = {
+        isActive: true,
+        type,
+        startX: event.clientX,
+        startScrollLeft: container.scrollLeft
+      };
+      
+      // Prevent text selection during scroll
+      document.body.style.userSelect = 'none';
+      
+      // Add global event listeners for smooth scrolling
+      document.addEventListener('mousemove', this.handleGlobalMouseMove);
+      document.addEventListener('mouseup', this.handleGlobalMouseUp);
+    },
+    handleGlobalMouseMove(event) {
+      if (this.scrollState.isActive) {
+        this.onScrollMove(event);
+      }
+    },
+    handleGlobalMouseUp() {
+      this.stopScroll();
+    },
+    onScrollMove(event) {
+      if (!this.scrollState.isActive) return;
+      
+      const refs = this.getScrollRefs(this.scrollState.type);
+      const { container } = refs;
+      if (!container) return;
+      
+      const deltaX = event.clientX - this.scrollState.startX;
+      container.scrollLeft = this.scrollState.startScrollLeft - deltaX;
+    },
+    stopScroll() {
+      // Reset scroll state
+      this.scrollState = {
+        isActive: false,
+        type: null,
+        startX: 0,
+        startScrollLeft: 0
+      };
+      
+      // Restore text selection
+      document.body.style.userSelect = '';
+      
+      // Remove global event listeners
+      document.removeEventListener('mousemove', this.handleGlobalMouseMove);
+      document.removeEventListener('mouseup', this.handleGlobalMouseUp);
+    }
+  },
+  beforeUnmount() {
+    // Clean up on component destruction
+    this.stopScroll();
   }
 };
 </script>
+
+<style scoped>
+.scrollable-text-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  cursor: grab;
+  /* Smooth scrolling */
+  scroll-behavior: auto; /* Disable smooth scroll during drag */
+  /* Ensure container can scroll */
+  position: relative;
+  width: 100%;
+}
+
+.scrollable-text-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+.scrollable-text-container:active {
+  cursor: grabbing;
+}
+
+.scrollable-text-container h3,
+.scrollable-text-container p {
+  /* Ensure text doesn't wrap */
+  white-space: nowrap;
+  /* Prevent text selection during drag */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  /* Display inline-block to allow proper width calculation */
+  display: inline-block;
+  min-width: 100%;
+}
+</style>
 
