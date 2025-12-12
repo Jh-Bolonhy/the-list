@@ -1,5 +1,5 @@
 <template>
-  <div
+    <div
     :draggable="true"
     :data-element-id="element.id"
     @dragstart="$emit('drag-start', $event, index)"
@@ -8,7 +8,7 @@
     @drop="$emit('drop', $event, index)"
     @dragend="$emit('drag-end')"
     :style="combinedStyles"
-    class="relative"
+    class="relative element-item-wrapper"
     :class="[
       elementClasses,
       'flex items-center p-4 rounded-lg transition-all duration-300 ease-in-out border border-gray-300',
@@ -228,9 +228,14 @@ export default {
   ],
   computed: {
     combinedStyles() {
+      const indentAmount = this.element.level > 0 ? this.element.level * 1.25 : 0;
       const styles = {
         // 20px = 1.25rem (20 / 16 = 1.25)
-        marginLeft: this.element.level > 0 ? `${this.element.level * 1.25}rem` : '0'
+        // Use margin-left for indentation, but reduce width to keep right edge aligned
+        marginLeft: `${indentAmount}rem`,
+        // Reduce width by indent amount to keep right edge aligned with container
+        // This ensures elements don't overflow while maintaining proper indentation
+        width: indentAmount > 0 ? `calc(100% - ${indentAmount}rem)` : '100%'
       };
       
       // Базовый отрицательный marginTop для визуального сжатия вложенных элементов

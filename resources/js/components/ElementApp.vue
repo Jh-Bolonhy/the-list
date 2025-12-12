@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="min-h-screen py-8" style="background-color: #4F46E5;">
-    <div class="max-w-4xl mx-auto px-4 relative">
+    <div class="max-w-4xl mx-auto px-4 relative main-content-wrapper">
       <!-- Large Icon on the left -->
       <div v-if="user" class="absolute -left-24 top-6 hidden xl:block flex items-center" style="height: 48px;">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 450" width="48" height="48" class="opacity-20">
@@ -58,7 +58,7 @@
       />
 
       <!-- Main App Content (only shown when authenticated) -->
-      <div v-if="user" class="bg-white rounded-lg shadow-lg p-6">
+      <div v-if="user" class="bg-white rounded-lg shadow-lg p-6 white-background-container">
         <!-- Header -->
         <AppHeader
           :user="user"
@@ -85,7 +85,7 @@
         />
 
         <!-- Element List -->
-        <div class="space-y-4">
+        <div class="space-y-4 element-list-container">
 
           <div v-if="loading" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -2036,16 +2036,32 @@ export default {
   transition: gap 0.3s ease-in-out;
 }
 
-/* Ensure all list items maintain their width and margins during collapse animation */
-/* Elements should keep their natural width (which already accounts for margin-left via inline styles) */
+/* Ensure all list items maintain their width during collapse animation */
+/* Elements use margin-left and reduced width to keep right edge aligned */
 .space-y-3 > * {
   box-sizing: border-box;
   /* Prevent flex items from expanding beyond their natural width */
-  flex-shrink: 1;
+  flex-shrink: 0;
   min-width: 0;
-  /* Don't set width or max-width - let elements maintain their natural width with margin-left */
+  /* Width is set via inline styles to account for margin-left */
+  /* This ensures: margin-left + width = 100%, keeping right edge aligned */
   /* Ensure elements don't expand beyond container during transitions */
   align-self: flex-start;
+  /* Prevent elements from expanding beyond container during animations */
+  overflow-x: hidden;
+  /* Margin-left is used for indentation, width is reduced to keep right edge aligned */
+  position: relative;
+}
+
+/* Element item wrapper - margin-left and reduced width keep right edge aligned */
+.element-item-wrapper {
+  /* Margin-left is used for indentation, width is reduced to keep right edge aligned */
+  box-sizing: border-box;
+  /* Width is set via inline styles to account for margin-left */
+  /* This ensures right edge stays aligned: margin-left + width = 100% */
+  margin-right: 0;
+  /* Ensure elements don't overflow container */
+  max-width: 100%;
 }
 
 .list-enter-from {
@@ -2069,6 +2085,11 @@ export default {
   /* Ensure flex items don't expand beyond their container */
   flex-shrink: 1;
   min-width: 0;
+  /* Prevent absolutely positioned elements from affecting parent layout */
+  left: 0;
+  right: 0;
+  /* Ensure element doesn't cause horizontal overflow */
+  max-width: 100%;
 }
 
 /* Smooth height transition for list container when elements collapse/expand */
@@ -2079,12 +2100,55 @@ export default {
   max-height: 99999px; /* Large value to accommodate all elements */
   overflow: hidden; /* Prevent elements from expanding beyond container during animation */
   padding-top: 3px; /* Ensure top border of first element is visible */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Prevent width changes during animations */
+  position: relative;
+  /* Isolate layout to prevent parent shifting */
+  contain: layout;
+  /* Ensure container doesn't expand horizontally */
+  min-width: 0;
+  /* Note: overflow-x: clip removed - elements use calc(100% - margin-left) 
+     which should prevent overflow, but overflow: hidden above provides protection */
 }
 
 /* White background container - minimum height equals viewport height minus top/bottom padding */
 /* Parent container has py-8 (2rem top + 2rem bottom = 4rem total) */
 .bg-white.rounded-lg.shadow-lg {
   min-height: calc(100vh - 4rem);
+}
+
+/* Ensure white background container maintains static width during animations */
+.white-background-container {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: visible;
+  /* Prevent width changes during any animations */
+  position: relative;
+  /* Isolate layout to prevent shifting during child animations */
+  contain: layout style;
+  /* Prevent horizontal scrolling and shifting */
+  isolation: isolate;
+}
+
+/* Ensure element list container doesn't expand beyond white background */
+.element-list-container {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+/* Prevent main content wrapper from shifting during animations */
+.main-content-wrapper {
+  /* Prevent horizontal shifting during child animations */
+  contain: layout;
+  /* Ensure stable positioning */
+  position: relative;
 }
 
 </style>
