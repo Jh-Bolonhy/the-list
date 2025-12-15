@@ -28,8 +28,9 @@
         : ''
     ]"
   >
-    <!-- Checkbox -->
+    <!-- Checkbox (hidden while editing) -->
     <input
+      v-if="editingElement?.id !== element.id"
       type="checkbox"
       :checked="element.completed"
       @change="$emit('toggle', element)"
