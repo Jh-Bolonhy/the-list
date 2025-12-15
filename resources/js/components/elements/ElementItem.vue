@@ -48,7 +48,7 @@
         <textarea
           v-model="editingElement.description"
           rows="2"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 edit-description-textarea styled-scrollbar"
         ></textarea>
         <div class="flex space-x-2">
           <button
@@ -112,6 +112,7 @@
             ref="descriptionContainer"
             :class="[
               'description-container',
+              'styled-scrollbar',
               isDescriptionExpanded ? 'description-expanded' : 'description-collapsed',
             ]"
             :style="descriptionHeight !== null ? { height: descriptionHeight + 'px' } : {}"
@@ -755,30 +756,42 @@ export default {
   /* Enable scrolling immediately - scrollbar should remain visible if content overflows */
   overflow-y: auto;
   overflow-x: hidden;
-  /* Content can be taller than 4 lines, enabling scroll */
-  /* Styled scrollbar */
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* Firefox: thumb and track */
-  -ms-overflow-style: auto; /* IE and Edge */
+  /* Scrollbar styling is shared via .styled-scrollbar */
 }
 
-/* Styled scrollbar for WebKit browsers (Chrome, Safari, Opera) */
-.description-expanded::-webkit-scrollbar {
+/* Shared styled scrollbar (use everywhere going forward) */
+.styled-scrollbar {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* Firefox: thumb and track */
+  -ms-overflow-style: auto; /* IE and old Edge */
+}
+
+.styled-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 
-.description-expanded::-webkit-scrollbar-track {
+.styled-scrollbar::-webkit-scrollbar-track {
   background: transparent;
   border-radius: 3px;
 }
 
-.description-expanded::-webkit-scrollbar-thumb {
+.styled-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(156, 163, 175, 0.5);
   border-radius: 3px;
 }
 
-.description-expanded::-webkit-scrollbar-thumb:hover {
+.styled-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(156, 163, 175, 0.7);
+}
+
+/* Edit modal textarea: max 4 lines visible, then scroll */
+.edit-description-textarea {
+  line-height: 1.5;
+  /* 4 lines (1.5em each) + vertical padding (py-2 => 0.5rem top + 0.5rem bottom = 1rem) */
+  max-height: calc(1.5em * 4 + 1rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  resize: none;
 }
 
 .description-expanded.cursor-grabbing {
