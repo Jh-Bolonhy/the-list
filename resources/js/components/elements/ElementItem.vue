@@ -86,10 +86,25 @@
           <div
             class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
             :style="{
-              width: '2.25rem',
+              width: '2rem',
+              right: '2rem',
               background: `linear-gradient(to right, transparent, ${element.archived ? '#e5e7eb' : '#f9fafb'})`
             }"
           ></div>
+          <!-- Copy to clipboard button (fixed width so fade ends right before it) -->
+          <div class="title-action-slot">
+            <button
+              class="copy-button"
+              :class="{ 'copy-button-copied': isCopied }"
+              @click.stop="copyElementContent"
+              :title="t('copy') || 'Copy'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div v-if="element.description" class="relative mt-1 description-wrapper">
           <div
@@ -264,7 +279,9 @@ export default {
       isDescriptionExpanded: false,
       descriptionNeedsExpansion: false,
       descriptionHeight: null, // Store computed height for animation
-      buttonTransformY: 0 // Store button transform for animation
+      buttonTransformY: 0, // Store button transform for animation
+      isCopied: false, // Track if content was successfully copied
+      copyFeedbackTimeoutId: null // Timeout id for copy feedback reset
     };
   },
   computed: {
@@ -550,6 +567,37 @@ export default {
       // Remove global event listeners
       document.removeEventListener('mousemove', this.handleGlobalMouseMove);
       document.removeEventListener('mouseup', this.handleGlobalMouseUp);
+    },
+    async copyElementContent() {
+      try {
+        const title = this.element.title || '';
+        const description = this.element.description || '';
+        const indentedDescription = description
+          ? '  ' + description.replace(/\n/g, '\n  ')
+          : '';
+        const textToCopy = indentedDescription
+          ? `${title}\n\n${indentedDescription}`
+          : title;
+        
+        // Use Clipboard API to copy and verify success
+        await navigator.clipboard.writeText(textToCopy);
+        
+        // Only show visual feedback if copy was successful
+        if (this.copyFeedbackTimeoutId) {
+          clearTimeout(this.copyFeedbackTimeoutId);
+          this.copyFeedbackTimeoutId = null;
+        }
+        this.isCopied = true;
+        
+        // Remove visual feedback after animation duration (1.25s)
+        this.copyFeedbackTimeoutId = setTimeout(() => {
+          this.isCopied = false;
+          this.copyFeedbackTimeoutId = null;
+        }, 1250);
+      } catch (err) {
+        console.error('Failed to copy element content', err);
+        // Don't set isCopied to true if copy failed
+      }
     }
   },
   mounted() {
@@ -773,6 +821,58 @@ export default {
 /* Rotate SVG icon when expanded */
 .description-toggle-expanded svg {
   transform: rotate(180deg);
+}
+
+/* Copy button aligned with title row, similar size to toggle button */
+.title-action-slot {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  /* Match description toggle button size (icon 1rem + padding) */
+  width: 2rem;
+  height: 1.5rem;
+}
+
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background-color: rgb(229, 231, 235); /* bg-gray-200 */
+  color: rgb(75, 85, 99); /* text-gray-600 */
+  border: 1px solid transparent; /* keep layout stable; border color animates on success */
+  border-radius: 0.25rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.copy-button:hover {
+  background-color: rgb(243, 244, 246); /* bg-gray-100 */
+  color: rgb(107, 114, 128); /* text-gray-500 */
+}
+
+.copy-button-copied {
+  border-color: rgb(59, 130, 246); /* blue-500 - same color as edit button */
+  animation: blink-border-only 1.25s ease-in-out forwards; /* keep final state (transparent) */
+}
+
+@keyframes blink-border-only {
+  0% {
+    border-color: rgb(59, 130, 246); /* blue-500 - 1. visible frame */
+  }
+  25% {
+    border-color: transparent; /* 2. frame fades out */
+  }
+  50% {
+    border-color: rgb(59, 130, 246); /* blue-500 - 3. frame becomes visible again */
+  }
+  75%, 100% {
+    border-color: transparent; /* 4. frame fades out and stays transparent */
+  }
 }
 </style>
 
