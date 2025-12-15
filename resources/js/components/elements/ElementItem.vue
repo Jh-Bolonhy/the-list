@@ -1,6 +1,6 @@
 <template>
     <div
-    :draggable="true"
+    :draggable="editingElement?.id !== element.id"
     :data-element-id="element.id"
     @dragstart="$emit('drag-start', $event, index)"
     @dragover.prevent="$emit('drag-over', $event, index)"
@@ -284,6 +284,22 @@ export default {
       isCopied: false, // Track if content was successfully copied
       copyFeedbackTimeoutId: null // Timeout id for copy feedback reset
     };
+  },
+  watch: {
+    // When entering edit mode, make sure nothing blocks text selection (e.g. drag-scroll left userSelect='none')
+    editingElement: {
+      handler(newVal) {
+        if (newVal?.id === this.element.id) {
+          // Stop any active drag-scroll on title and restore selection
+          if (this.scrollState?.isActive) {
+            this.stopScroll();
+          } else {
+            document.body.style.userSelect = '';
+          }
+        }
+      },
+      deep: false
+    }
   },
   computed: {
     buttonTransformStyle() {
