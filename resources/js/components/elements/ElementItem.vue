@@ -12,19 +12,19 @@
     :class="[
       elementClasses,
       'flex items-center p-4 rounded-lg transition-all duration-[400ms] border border-gray-300',
-      draggingIndex === index 
-        ? 'shadow-2xl z-50 scale-[0.98] cursor-grabbing' 
+      draggingIndex === index
+        ? 'shadow-2xl z-50 scale-[0.98] cursor-grabbing'
         : 'cursor-grab',
-      element.archived 
-        ? 'bg-gray-200 hover:bg-gray-300' 
+      element.archived
+        ? 'bg-gray-200 hover:bg-gray-300'
         : 'bg-gray-50 hover:bg-gray-100',
       draggingIndex !== null && draggingIndex !== index
-        ? 'opacity-90' 
+        ? 'opacity-90'
         : '',
       dragOverIndex === index && draggingIndex !== null && draggingIndex !== index ? 'mt-1' : '',
       dragOverIndex === index + 1 && draggingIndex !== null && draggingIndex !== index ? 'mb-1' : '',
       hoverElementIndex === index && hoverElementPart === 'middle' && draggingIndex !== null && draggingIndex !== index
-        ? 'shadow-lg scale-[1.02]' 
+        ? 'shadow-lg scale-[1.02]'
         : ''
     ]"
   >
@@ -35,7 +35,7 @@
       @change="$emit('toggle', element)"
       class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-4"
     />
-    
+
     <!-- Element Content -->
     <div class="flex-1 pr-32 overflow-hidden min-w-0 relative">
       <div v-if="editingElement?.id === element.id" class="space-y-2">
@@ -71,7 +71,7 @@
             class="scrollable-text-container"
             @mousedown="startScroll($event, 'title')"
           >
-            <h3 
+            <h3
               ref="titleText"
               :class="[
                 'text-lg font-medium whitespace-nowrap',
@@ -83,7 +83,7 @@
             </h3>
           </div>
           <!-- Gradient fade overlay for title -->
-          <div 
+          <div
             class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
             :style="{
               width: '2.25rem',
@@ -97,12 +97,10 @@
             :class="[
               'description-container',
               isDescriptionExpanded ? 'description-expanded' : 'description-collapsed',
-              isScrollingDescription ? 'cursor-grabbing' : ''
             ]"
             :style="descriptionHeight !== null ? { height: descriptionHeight + 'px' } : {}"
-            @mousedown="startDescriptionScroll($event)"
           >
-            <p 
+            <p
               ref="descriptionText"
               :class="[
                 'text-gray-600 description-text',
@@ -130,12 +128,12 @@
             </svg>
           </button>
         </div>
-        <p class="text-xs text-gray-400 mt-2 whitespace-nowrap overflow-hidden">
+        <p class="text-xs text-gray-400 mt-1 whitespace-nowrap overflow-hidden">
           {{ t('created') }}: {{ formatDate(element.created_at) }}
         </p>
       </div>
     </div>
-    
+
     <!-- Collapse/Expand Button (only for elements with children) - centered across full element width -->
     <!-- Positioned absolutely relative to root element to center across entire gray box, on same line as date -->
     <button
@@ -150,9 +148,9 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
       </svg>
     </button>
-    
+
     <!-- Actions -->
-    <div v-if="editingElement?.id !== element.id" class="absolute right-4 top-1/2 transform -translate-y-1/2 w-28 flex flex-col space-y-2 z-20">
+    <div v-if="editingElement?.id !== element.id" class="absolute right-4 top-1/2 transform -translate-y-1/2 w-28 flex flex-col space-y-2 z-30" style="pointer-events: auto;">
       <!-- Actions for active (non-archived) elements -->
       <template v-if="!element.archived">
         <button
@@ -263,11 +261,6 @@ export default {
         startX: 0,
         startScrollLeft: 0
       },
-      descriptionScrollState: {
-        isActive: false,
-        startY: 0,
-        startScrollTop: 0
-      },
       isDescriptionExpanded: false,
       descriptionNeedsExpansion: false,
       descriptionHeight: null, // Store computed height for animation
@@ -283,9 +276,6 @@ export default {
     isScrollingTitle() {
       return this.scrollState.isActive && this.scrollState.type === 'title';
     },
-    isScrollingDescription() {
-      return this.descriptionScrollState.isActive;
-    },
     combinedStyles() {
       const indentAmount = this.element.level > 0 ? this.element.level * 1.25 : 0;
       const styles = {
@@ -296,10 +286,10 @@ export default {
         // This ensures elements don't overflow while maintaining proper indentation
         width: indentAmount > 0 ? `calc(100% - ${indentAmount}rem)` : '100%'
       };
-      
+
       // Базовый отрицательный marginTop для визуального сжатия вложенных элементов
       const baseMarginTop = (1 - Math.pow(0.8, this.element.level + 1)) * 0.75;
-      
+
       // Проверяем, есть ли классы для drag-and-drop маржи
       // 20px = 1.25rem (20 / 16 = 1.25), 40.8px = 2.55rem (40.8 / 16 = 2.55)
       // Если есть mt-[2.55rem], используем его (специальный случай для первого корневого элемента)
@@ -311,12 +301,12 @@ export default {
         // Иначе используем базовый отрицательный отступ
         styles.marginTop = `-${baseMarginTop}rem`;
       }
-      
+
       // Если есть mb-[1.25rem], добавляем нижнюю маржу
       if (this.elementClasses && this.elementClasses.includes('mb-[1.25rem]')) {
         styles.marginBottom = '1.25rem';
       }
-      
+
       return styles;
     }
   },
@@ -334,25 +324,25 @@ export default {
       this.$nextTick(() => {
         const container = this.$refs.descriptionContainer;
         const text = this.$refs.descriptionText;
-        
+
         if (!container || !text) {
           this.descriptionNeedsExpansion = false;
           return;
         }
-        
+
         if (this.isDescriptionExpanded) {
           // When expanded, we don't need to show dots button
           this.descriptionNeedsExpansion = false;
           return;
         }
-        
+
         // Check if text overflows when collapsed (more than 1 line)
         // Use getBoundingClientRect for accurate measurements
         const lineHeight = parseFloat(window.getComputedStyle(text).lineHeight) || 1.5 * 16;
         const maxHeight = lineHeight * 1; // 1 line when collapsed
         const textHeight = text.scrollHeight;
         const containerWidth = container.clientWidth;
-        
+
         // Create a temporary clone to measure text width with proper wrapping
         const clone = text.cloneNode(true);
         clone.style.visibility = 'hidden';
@@ -363,7 +353,7 @@ export default {
         document.body.appendChild(clone);
         const textWidth = clone.scrollWidth;
         document.body.removeChild(clone);
-        
+
         // Needs expansion if text is wider than container OR taller than 1 line
         this.descriptionNeedsExpansion = textWidth > containerWidth || textHeight > maxHeight;
       });
@@ -372,14 +362,14 @@ export default {
       const container = this.$refs.descriptionContainer;
       const text = this.$refs.descriptionText;
       const button = this.$refs.descriptionToggleButton;
-      
+
       if (!container || !text) return;
-      
+
       // Remove animation-complete class if it exists
       container.classList.remove('animation-complete');
-      
+
       const wasExpanded = this.isDescriptionExpanded;
-      
+
       // Get current height - if 0, measure it first
       let currentHeight = container.offsetHeight;
       if (currentHeight === 0) {
@@ -390,11 +380,11 @@ export default {
         container.style.height = '';
         container.style.maxHeight = '';
       }
-      
+
       // Calculate target height
       let targetHeight;
       const lineHeight = parseFloat(window.getComputedStyle(text).lineHeight) || 24; // 1.5em = 24px typically
-      
+
       if (wasExpanded) {
         // Collapsing: set to 1 line height
         targetHeight = lineHeight;
@@ -408,18 +398,18 @@ export default {
         const contentHeight = text.scrollHeight;
         container.style.height = tempHeight;
         container.style.maxHeight = tempMaxHeight;
-        
+
         const maxHeight = lineHeight * 4; // 4 lines
         targetHeight = Math.min(maxHeight, contentHeight);
       }
-      
+
       // Calculate button position
       // Always use top positioning for consistency
       // When collapsed: button is at top of container (Y = 0)
       // When expanded: button is below container (Y = container height + margin)
       let targetButtonY;
       const margin = 4; // 0.25rem = 4px
-      
+
       if (wasExpanded) {
         // Collapsing: move button to top of container
         targetButtonY = 0;
@@ -428,10 +418,10 @@ export default {
         // Position = container height + small margin
         targetButtonY = targetHeight + margin;
       }
-      
+
       // Get current button position
       let currentButtonY = this.buttonTransformY;
-      
+
       // If position not initialized, calculate from current state
       if (currentButtonY === 0) {
         if (wasExpanded) {
@@ -442,23 +432,23 @@ export default {
           currentButtonY = 0;
         }
       }
-      
+
       // Set initial height and button position explicitly before state change
       container.style.height = currentHeight + 'px';
       container.style.maxHeight = 'none'; // Remove max-height to allow height animation
       if (button) {
         this.buttonTransformY = currentButtonY;
       }
-      
+
       // Force reflow to ensure styles are applied
       void container.offsetHeight;
       if (button) {
         void button.offsetHeight;
       }
-      
+
       // Change state
       this.isDescriptionExpanded = !this.isDescriptionExpanded;
-      
+
       // Set target height and button position in next frame to trigger animation
       this.$nextTick(() => {
         requestAnimationFrame(() => {
@@ -468,13 +458,13 @@ export default {
             if (button) {
               this.buttonTransformY = targetButtonY;
             }
-          
+
             // Wait for animation to complete
             setTimeout(() => {
               if (!container) return;
-              
+
               if (this.isDescriptionExpanded) {
-                // After expanding, enable scrolling
+                // After expanding, mark as complete (scrolling is already enabled via CSS)
                 container.classList.add('animation-complete');
               } else {
                 // After collapsing, mark as complete
@@ -487,7 +477,7 @@ export default {
                   }
                 }, 50);
               }
-              
+
               // Delay overflow check
               setTimeout(() => {
                 this.checkDescriptionOverflow();
@@ -497,75 +487,21 @@ export default {
         });
       });
     },
-    startDescriptionScroll(event) {
-      const container = this.$refs.descriptionContainer;
-      const text = this.$refs.descriptionText;
-      if (!container || !text) return;
-      
-      // Only allow vertical scroll if expanded and has more than 4 lines
-      if (!this.isDescriptionExpanded) return;
-      
-      const lineHeight = parseFloat(window.getComputedStyle(text).lineHeight) || 1.5 * 16; // fallback to 1.5em
-      const maxHeight = lineHeight * 4; // 4 lines
-      const textHeight = text.scrollHeight;
-      
-      // Only allow scroll if text is taller than 4 lines
-      if (textHeight <= maxHeight) return;
-      
-      // Check if container can scroll vertically
-      if (container.scrollHeight <= container.clientHeight) return;
-      
-      event.preventDefault();
-      event.stopPropagation();
-      
-      this.descriptionScrollState = {
-        isActive: true,
-        startY: event.clientY,
-        startScrollTop: container.scrollTop
-      };
-      
-      document.body.style.userSelect = 'none';
-      document.addEventListener('mousemove', this.handleDescriptionScrollMove);
-      document.addEventListener('mouseup', this.handleDescriptionScrollUp);
-    },
-    handleDescriptionScrollMove(event) {
-      if (!this.descriptionScrollState.isActive) return;
-      
-      const container = this.$refs.descriptionContainer;
-      if (!container) return;
-      
-      const deltaY = event.clientY - this.descriptionScrollState.startY;
-      container.scrollTop = this.descriptionScrollState.startScrollTop - deltaY;
-    },
-    handleDescriptionScrollUp() {
-      this.stopDescriptionScroll();
-    },
-    stopDescriptionScroll() {
-      this.descriptionScrollState = {
-        isActive: false,
-        startY: 0,
-        startScrollTop: 0
-      };
-      
-      document.body.style.userSelect = '';
-      document.removeEventListener('mousemove', this.handleDescriptionScrollMove);
-      document.removeEventListener('mouseup', this.handleDescriptionScrollUp);
-    },
     startScroll(event, type) {
       const refs = this.getScrollRefs(type);
       const { container, text } = refs;
-      
+
       if (!container || !text) return;
-      
+
       // Check if text overflows
       if (text.scrollWidth <= container.clientWidth) {
         return; // Text fits, no need to scroll
       }
-      
+
       // Prevent default to avoid text selection
       event.preventDefault();
       event.stopPropagation();
-      
+
       // Set scroll state
       this.scrollState = {
         isActive: true,
@@ -573,10 +509,10 @@ export default {
         startX: event.clientX,
         startScrollLeft: container.scrollLeft
       };
-      
+
       // Prevent text selection during scroll
       document.body.style.userSelect = 'none';
-      
+
       // Add global event listeners for smooth scrolling
       document.addEventListener('mousemove', this.handleGlobalMouseMove);
       document.addEventListener('mouseup', this.handleGlobalMouseUp);
@@ -591,11 +527,11 @@ export default {
     },
     onScrollMove(event) {
       if (!this.scrollState.isActive) return;
-      
+
       const refs = this.getScrollRefs(this.scrollState.type);
       const { container } = refs;
       if (!container) return;
-      
+
       const deltaX = event.clientX - this.scrollState.startX;
       container.scrollLeft = this.scrollState.startScrollLeft - deltaX;
     },
@@ -607,10 +543,10 @@ export default {
         startX: 0,
         startScrollLeft: 0
       };
-      
+
       // Restore text selection
       document.body.style.userSelect = '';
-      
+
       // Remove global event listeners
       document.removeEventListener('mousemove', this.handleGlobalMouseMove);
       document.removeEventListener('mouseup', this.handleGlobalMouseUp);
@@ -642,7 +578,6 @@ export default {
   beforeUnmount() {
     // Clean up on component destruction
     this.stopScroll();
-    this.stopDescriptionScroll();
     window.removeEventListener('resize', this.checkDescriptionOverflow);
   }
 };
@@ -690,6 +625,8 @@ export default {
   position: relative;
   /* Ensure button is not clipped when it moves below container */
   overflow: visible;
+  /* Add space below to accommodate button when expanded (button height ~32px + margin) */
+  margin-bottom: 0.8rem;
 }
 
 /* Description container styles */
@@ -706,8 +643,6 @@ export default {
   padding-left: 0.5rem;
   padding-right: 2.5rem; /* Space for toggle button when collapsed */
   margin-top: 0.25rem;
-  /* Base transition for height - use height instead of max-height for reliable animation */
-  transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 
@@ -752,20 +687,14 @@ export default {
   /* max-height is removed to allow height animation */
   line-height: 1.5;
   padding-right: 2.5rem; /* Space for scrollbar */
-  /* Start with hidden, then change to auto after animation */
-  overflow: hidden;
-  /* No hover effects - removed cursor: grab */
+  /* Enable scrolling immediately - scrollbar should remain visible if content overflows */
+  overflow-y: auto;
+  overflow-x: hidden;
   /* Content can be taller than 4 lines, enabling scroll */
   /* Styled scrollbar */
   scrollbar-width: thin; /* Firefox */
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* Firefox: thumb and track */
   -ms-overflow-style: auto; /* IE and Edge */
-}
-
-/* After animation completes, enable scrolling */
-.description-expanded.animation-complete {
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 /* Styled scrollbar for WebKit browsers (Chrome, Safari, Opera) */
@@ -781,7 +710,6 @@ export default {
 .description-expanded::-webkit-scrollbar-thumb {
   background-color: rgba(156, 163, 175, 0.5);
   border-radius: 3px;
-  transition: all 0.4s;
 }
 
 .description-expanded::-webkit-scrollbar-thumb:hover {
@@ -817,10 +745,7 @@ export default {
   cursor: pointer;
   outline: none;
   color: rgb(75, 85, 99); /* text-gray-600 */
-  z-index: 20;
   border-radius: 0.25rem;
-  /* Smooth transition for transform - only transform, not all properties */
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   /* Use will-change for smoother animation */
   will-change: transform;
 }
@@ -832,7 +757,6 @@ export default {
 }
 
 .description-toggle-button svg {
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: center;
 }
 
