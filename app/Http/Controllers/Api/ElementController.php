@@ -12,6 +12,33 @@ use Illuminate\Support\Facades\DB;
 class ElementController extends Controller
 {
     /**
+     * Collect ids of an element and all its descendants for the current user.
+     * (Iterative BFS to avoid deep recursion)
+     *
+     * @return array<int,int>
+     */
+    private function collectDescendantIds(int $rootId, int $userId): array
+    {
+        $all = [$rootId];
+        $frontier = [$rootId];
+
+        while (!empty($frontier)) {
+            $children = Element::where('user_id', $userId)
+                ->whereIn('parent_element_id', $frontier)
+                ->pluck('id')
+                ->all();
+
+            if (empty($children)) {
+                break;
+            }
+
+            $all = array_merge($all, $children);
+            $frontier = $children;
+        }
+
+        return $all;
+    }
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request): JsonResponse
@@ -104,8 +131,23 @@ class ElementController extends Controller
      */
     public function archive(string $id): JsonResponse
     {
-        $element = Element::where('user_id', Auth::id())->findOrFail($id);
+        $userId = Auth::id();
+        $element = Element::where('user_id', $userId)->findOrFail($id);
+
+        // If a lock is active on any element that will be archived (this element or its descendants),
+        // force unlock it.
+        $idsToArchive = $this->collectDescendantIds((int) $id, $userId);
+
         $element->archiveWithDescendants();
+
+        $user = Auth::user();
+        if ($user && $user->locked_element_id !== null) {
+            if (in_array((int) $user->locked_element_id, $idsToArchive, true)) {
+                $user->locked_element_id = null;
+                $user->save();
+            }
+        }
+
         return response()->json(['message' => 'Element and all descendants archived successfully'], 200);
     }
 

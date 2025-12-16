@@ -954,6 +954,37 @@ export default {
         // Update local state for element and all its descendants
         this.updateElementAndDescendants(id, { archived: true });
         // Note: Filtering is handled automatically by filteredElements computed property
+
+        // Force-unlock if the locked element is the one being archived or is within its subtree
+        if (this.lockedElementId !== null) {
+          const lockedId = this.lockedElementId;
+          let cur = this.elements.find(e => e.id === lockedId);
+          let shouldUnlock = lockedId === id;
+          while (!shouldUnlock && cur && cur.parent_element_id) {
+            if (cur.parent_element_id === id) {
+              shouldUnlock = true;
+              break;
+            }
+            cur = this.elements.find(e => e.id === cur.parent_element_id);
+          }
+
+          if (shouldUnlock) {
+            const previous = this.lockedElementId;
+            this.lockedElementId = null;
+            axios.put('/api/user/locked-element', { locked_element_id: null })
+              .then((res) => {
+                if (res.data?.user) {
+                  this.user = res.data.user;
+                  this.lockedElementId = this.user.locked_element_id ?? null;
+                }
+              })
+              .catch((err) => {
+                console.error('Error clearing locked element after archive:', err);
+                // revert if backend failed
+                this.lockedElementId = previous;
+              });
+          }
+        }
       } catch (error) {
         this.handleError(error, 'failedArchive', false);
       }
