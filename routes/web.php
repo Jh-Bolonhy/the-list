@@ -14,6 +14,7 @@ Route::prefix('api')->group(function () {
     Route::put('user/headline', [AuthController::class, 'updateHeadline'])->name('auth.update-headline')->middleware('auth');
     Route::put('user/locale', [AuthController::class, 'updateLocale'])->name('auth.update-locale')->middleware('auth');
     Route::put('user/show-mode', [AuthController::class, 'updateShowMode'])->name('auth.update-show-mode')->middleware('auth');
+    Route::put('user/locked-element', [AuthController::class, 'updateLockedElement'])->name('auth.update-locked-element')->middleware('auth');
     
     // Protected routes - require authentication
     Route::middleware('auth')->group(function () {

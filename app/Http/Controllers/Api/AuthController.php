@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Element;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -49,6 +50,7 @@ class AuthController extends Controller
                 'headline' => $user->headline, // Always return headline, even if null
                 'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
                 'show_mode' => $user->show_mode ?? 'active', // Always return show_mode, default to 'active'
+                'locked_element_id' => $user->locked_element_id,
                 'email' => $user->email,
             ],
             'csrf_token' => csrf_token()
@@ -77,6 +79,7 @@ class AuthController extends Controller
                         'headline' => Auth::user()->headline, // Always return headline, even if null
                         'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
                         'show_mode' => Auth::user()->show_mode ?? 'active', // Always return show_mode, default to 'active'
+                        'locked_element_id' => Auth::user()->locked_element_id,
                         'email' => Auth::user()->email,
                     ],
                     'csrf_token' => csrf_token()
@@ -123,6 +126,7 @@ class AuthController extends Controller
                 'headline' => Auth::user()->headline, // Always return headline, even if null
                 'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
                 'show_mode' => Auth::user()->show_mode ?? 'active', // Always return show_mode, default to 'active'
+                'locked_element_id' => Auth::user()->locked_element_id,
                 'email' => Auth::user()->email,
             ];
         } else {
@@ -166,6 +170,7 @@ class AuthController extends Controller
                 'headline' => $user->headline, // Always return headline, even if null
                 'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
                 'show_mode' => $user->show_mode ?? 'active',
+                'locked_element_id' => $user->locked_element_id,
                 'email' => $user->email,
             ]
         ]);
@@ -192,6 +197,7 @@ class AuthController extends Controller
                 'headline' => $user->headline,
                 'locale' => $user->locale,
                 'show_mode' => $user->show_mode ?? 'active',
+                'locked_element_id' => $user->locked_element_id,
                 'email' => $user->email,
             ]
         ]);
@@ -218,6 +224,53 @@ class AuthController extends Controller
                 'headline' => $user->headline,
                 'locale' => $user->locale ?? 'en',
                 'show_mode' => $user->show_mode,
+                'locked_element_id' => $user->locked_element_id,
+                'email' => $user->email,
+            ]
+        ]);
+    }
+
+    /**
+     * Update locked_element_id for authenticated user
+     * Only one lock per user; null means "unlocked"
+     */
+    public function updateLockedElement(Request $request): JsonResponse
+    {
+        $request->validate([
+            'locked_element_id' => 'nullable|integer',
+        ]);
+
+        $user = Auth::user();
+        $lockedElementId = $request->input('locked_element_id');
+
+        if ($lockedElementId !== null) {
+            // Ensure element exists and belongs to current user
+            $element = Element::where('user_id', $user->id)->find($lockedElementId);
+            if (!$element) {
+                return response()->json(['message' => 'Element not found'], 404);
+            }
+
+            // Ensure it's a "parent tab" (has at least one child)
+            $hasChildren = Element::where('user_id', $user->id)
+                ->where('parent_element_id', $lockedElementId)
+                ->exists();
+            if (!$hasChildren) {
+                return response()->json(['message' => 'Lock can be enabled only for elements with children'], 400);
+            }
+        }
+
+        $user->locked_element_id = $lockedElementId;
+        $user->save();
+
+        return response()->json([
+            'message' => 'Locked element updated successfully',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'headline' => $user->headline,
+                'locale' => $user->locale ?? 'en',
+                'show_mode' => $user->show_mode ?? 'active',
+                'locked_element_id' => $user->locked_element_id,
                 'email' => $user->email,
             ]
         ]);

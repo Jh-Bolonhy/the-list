@@ -22,6 +22,7 @@ class User extends Authenticatable
         'headline',
         'locale',
         'show_mode',
+        'locked_element_id',
         'email',
         'password',
     ];

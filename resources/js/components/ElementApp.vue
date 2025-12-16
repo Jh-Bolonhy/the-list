@@ -617,9 +617,8 @@ export default {
         const response = await axios.get('/api/user');
         this.user = response.data.user;
         if (this.user) {
-          // Restore lock state per-user (client-side for now)
-          const storedLock = localStorage.getItem(`lockedElementId:${this.user.id}`);
-          this.lockedElementId = storedLock ? Number(storedLock) : null;
+          // Restore lock state from server
+          this.lockedElementId = this.user.locked_element_id ?? null;
 
           // Initialize headline from headline (or empty string if null)
           // Width limitation is handled dynamically by checkHeadlineWidth() method
@@ -666,15 +665,25 @@ export default {
       }
     },
     toggleLock(elementId) {
-      // Only one locked element per user
-      this.lockedElementId = this.lockedElementId === elementId ? null : elementId;
-      if (this.user?.id) {
-        if (this.lockedElementId) {
-          localStorage.setItem(`lockedElementId:${this.user.id}`, String(this.lockedElementId));
-        } else {
-          localStorage.removeItem(`lockedElementId:${this.user.id}`);
-        }
-      }
+      // Persist lock server-side (only one locked element per user)
+      const previous = this.lockedElementId;
+      const next = this.lockedElementId === elementId ? null : elementId;
+
+      // Optimistic UI update
+      this.lockedElementId = next;
+
+      axios.put('/api/user/locked-element', { locked_element_id: next })
+        .then((res) => {
+          if (res.data?.user) {
+            this.user = res.data.user;
+            this.lockedElementId = this.user.locked_element_id ?? null;
+          }
+        })
+        .catch((err) => {
+          console.error('Error updating locked element:', err);
+          // revert
+          this.lockedElementId = previous;
+        });
     },
     async handleRegister() {
       try {
