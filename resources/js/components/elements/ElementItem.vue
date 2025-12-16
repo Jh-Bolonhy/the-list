@@ -88,15 +88,15 @@
             class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
             :style="{
               width: '2rem',
-              right: hasChildren ? '4.25rem' : '2rem',
+              right: hasChildren && !element.archived ? '4.25rem' : '2rem',
               background: `linear-gradient(to right, transparent, ${element.archived ? '#e5e7eb' : '#f9fafb'})`
             }"
           ></div>
           <!-- Copy to clipboard button (fixed width so fade ends right before it) -->
           <div class="title-action-slot">
-            <!-- Lock button (parents only) -->
+            <!-- Lock button (parents only, not for archived) -->
             <button
-              v-if="hasChildren"
+              v-if="hasChildren && !element.archived"
               class="title-action-btn lock-button"
               :class="{ 'lock-active': lockedElementId === element.id }"
               @click.stop="$emit('toggle-lock', element.id)"
