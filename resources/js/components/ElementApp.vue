@@ -247,14 +247,39 @@ export default {
       const result = [];
       const processed = new Set();
       const lockedId = this.lockedElementId;
-      const byId = new Map(this.filteredElements.map(e => [e.id, e]));
+      
+      // Map of ALL elements (not just filtered) for calculating correct levels
+      const allById = new Map(this.elements.map(e => [e.id, e]));
+      // Map of filtered elements for display
+      const filteredById = new Map(this.filteredElements.map(e => [e.id, e]));
+
+      // Calculate the real level of an element by traversing up the parent chain
+      // This works even if parents are not in the current filter
+      const calculateLevel = (elementId) => {
+        if (lockedId && elementId === lockedId) {
+          return 0; // Locked element is always level 0
+        }
+        
+        const element = allById.get(elementId);
+        if (!element || !element.parent_element_id) {
+          return 0; // Root element
+        }
+        
+        // If parent is the locked element, this is level 1
+        if (lockedId && element.parent_element_id === lockedId) {
+          return 1;
+        }
+        
+        // Recursively calculate parent's level and add 1
+        return calculateLevel(element.parent_element_id) + 1;
+      };
 
       // Helper function to check if any parent is collapsed
       const isAnyParentCollapsed = (elementId) => {
         if (lockedId && elementId === lockedId) {
           return false; // locked root should not be affected by ancestors outside the subtree
         }
-        const element = byId.get(elementId);
+        const element = filteredById.get(elementId);
         if (!element || !element.parent_element_id) {
           return false;
         }
@@ -293,33 +318,85 @@ export default {
             .filter(e => e.parent_element_id === element.id)
             .sort((a, b) => (a.order || 0) - (b.order || 0));
           children.forEach(child => {
-            addElementAndChildren(child, level + 1);
+            // Use calculated level instead of just incrementing
+            const childLevel = calculateLevel(child.id);
+            addElementAndChildren(child, childLevel);
           });
         }
       };
 
+      // Helper function to check if element is a root in the filtered view
+      // (either has no parent, or parent is not in filtered elements)
+      const isRootInFilteredView = (elementId) => {
+        const element = allById.get(elementId);
+        if (!element || !element.parent_element_id) {
+          return true; // No parent in all elements = root
+        }
+        // If parent exists but is not in filtered elements, this is a "virtual root" in filtered view
+        return !filteredById.has(element.parent_element_id);
+      };
+
       // If a lock is active, show only the locked element and its descendants (levels start at 0)
       if (lockedId) {
-        const lockedElement = byId.get(lockedId);
+        const lockedElement = filteredById.get(lockedId);
         if (lockedElement) {
           addElementAndChildren(lockedElement, 0);
           return result;
         }
       }
 
-      // First, add all root elements (those without parent), sorted by order
+      // First, add all root elements (those without parent OR whose parent is not in filtered view)
+      // Sort them by their calculated level first, then by order
       const rootElements = this.filteredElements
-        .filter(e => !e.parent_element_id)
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
-      rootElements.forEach(root => {
-        addElementAndChildren(root, 0);
+        .filter(e => isRootInFilteredView(e.id))
+        .map(e => ({
+          element: e,
+          level: calculateLevel(e.id)
+        }))
+        .sort((a, b) => {
+          // First sort by level (lower levels first)
+          if (a.level !== b.level) {
+            return a.level - b.level;
+          }
+          // Then by order
+          return (a.element.order || 0) - (b.element.order || 0);
+        });
+      
+      rootElements.forEach(({ element, level }) => {
+        addElementAndChildren(element, level);
       });
 
       // Then add any remaining elements that might have been missed (orphaned children)
-      this.filteredElements.forEach(element => {
-        if (!processed.has(element.id)) {
-          addElementAndChildren(element, 0);
-        }
+      // These should be added in the correct hierarchical order
+      // Only add elements that don't have a parent in the filtered view (to avoid duplicates)
+      const remainingElements = this.filteredElements
+        .filter(e => {
+          if (processed.has(e.id)) {
+            return false; // Already processed
+          }
+          // Only add if parent is not in filtered view (to avoid adding as child of filtered parent)
+          const element = allById.get(e.id);
+          if (!element || !element.parent_element_id) {
+            return true; // No parent = orphaned root
+          }
+          // If parent is in filtered view, it should have been added as child, so skip
+          return !filteredById.has(element.parent_element_id);
+        })
+        .map(e => ({
+          element: e,
+          level: calculateLevel(e.id)
+        }))
+        .sort((a, b) => {
+          // First sort by level (lower levels first)
+          if (a.level !== b.level) {
+            return a.level - b.level;
+          }
+          // Then by order
+          return (a.element.order || 0) - (b.element.order || 0);
+        });
+      
+      remainingElements.forEach(({ element, level }) => {
+        addElementAndChildren(element, level);
       });
 
       return result;
