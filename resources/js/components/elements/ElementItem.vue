@@ -88,14 +88,33 @@
             class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
             :style="{
               width: '2rem',
-              right: '2rem',
+              right: hasChildren ? '4.25rem' : '2rem',
               background: `linear-gradient(to right, transparent, ${element.archived ? '#e5e7eb' : '#f9fafb'})`
             }"
           ></div>
           <!-- Copy to clipboard button (fixed width so fade ends right before it) -->
           <div class="title-action-slot">
+            <!-- Lock button (parents only) -->
             <button
-              class="copy-button"
+              v-if="hasChildren"
+              class="title-action-btn lock-button"
+              :class="{ 'lock-active': lockedElementId === element.id }"
+              @click.stop="$emit('toggle-lock', element.id)"
+              title="Lock"
+            >
+              <!-- Closed lock when active -->
+              <svg v-if="lockedElementId === element.id" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3V7a3 3 0 10-6 0v1c0 1.657 1.343 3 3 3z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11h10a2 2 0 012 2v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7a2 2 0 012-2z" />
+              </svg>
+              <!-- Open lock by default -->
+              <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11V7a3 3 0 10-6 0" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11h10a2 2 0 012 2v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7a2 2 0 012-2z" />
+              </svg>
+            </button>
+            <button
+              class="title-action-btn copy-button"
               :class="{ 'copy-button-copied': isCopied }"
               @click.stop="copyElementContent"
               :title="t('copy') || 'Copy'"
@@ -250,6 +269,10 @@ export default {
       type: Boolean,
       default: false
     },
+    lockedElementId: {
+      type: Number,
+      default: null
+    },
     isCollapsed: {
       type: Boolean,
       default: false
@@ -268,7 +291,8 @@ export default {
     'archive',
     'restore',
     'remove',
-    'toggle-collapse'
+    'toggle-collapse',
+    'toggle-lock'
   ],
   data() {
     return {
@@ -860,16 +884,16 @@ export default {
   top: 50%;
   transform: translateY(-50%);
   z-index: 20;
-  /* Match description toggle button size (icon 1rem + padding) */
-  width: 2rem;
+  display: flex;
+  gap: 0.25rem;
   height: 1.5rem;
 }
 
-.copy-button {
+.title-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: 2rem;
   height: 100%;
   padding: 0;
   background-color: rgb(229, 231, 235); /* bg-gray-200 */
@@ -880,9 +904,13 @@ export default {
   outline: none;
 }
 
-.copy-button:hover {
+.title-action-btn:hover {
   background-color: rgb(243, 244, 246); /* bg-gray-100 */
   color: rgb(107, 114, 128); /* text-gray-500 */
+}
+
+.lock-active {
+  border-color: rgb(59, 130, 246); /* blue-500 */
 }
 
 .copy-button-copied {

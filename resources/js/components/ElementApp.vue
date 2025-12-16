@@ -131,8 +131,10 @@
               @restore="restoreElement"
               @remove="removeElement"
               @toggle-collapse="toggleCollapse"
+              @toggle-lock="toggleLock"
               :has-children="hasChildren(element.id)"
               :is-collapsed="collapsedElements[element.id]"
+              :locked-element-id="lockedElementId"
             />
           </transition-group>
         </div>
@@ -216,6 +218,7 @@ export default {
       confirmMessage: '', // Confirmation message
       pendingElementId: null, // ID of element pending confirmation
       collapsedElements: {}, // Object mapping element IDs to collapse state (reactive)
+      lockedElementId: null, // Only one locked parent per user; when set, show only it + descendants
     };
   },
   computed: {
@@ -243,12 +246,21 @@ export default {
     hierarchicalElements() {
       const result = [];
       const processed = new Set();
+      const lockedId = this.lockedElementId;
+      const byId = new Map(this.filteredElements.map(e => [e.id, e]));
 
       // Helper function to check if any parent is collapsed
       const isAnyParentCollapsed = (elementId) => {
-        const element = this.filteredElements.find(e => e.id === elementId);
+        if (lockedId && elementId === lockedId) {
+          return false; // locked root should not be affected by ancestors outside the subtree
+        }
+        const element = byId.get(elementId);
         if (!element || !element.parent_element_id) {
           return false;
+        }
+        // Stop collapse propagation above the locked root
+        if (lockedId && element.parent_element_id === lockedId) {
+          return !!this.collapsedElements[lockedId];
         }
         if (this.collapsedElements[element.parent_element_id]) {
           return true;
@@ -285,6 +297,15 @@ export default {
           });
         }
       };
+
+      // If a lock is active, show only the locked element and its descendants (levels start at 0)
+      if (lockedId) {
+        const lockedElement = byId.get(lockedId);
+        if (lockedElement) {
+          addElementAndChildren(lockedElement, 0);
+          return result;
+        }
+      }
 
       // First, add all root elements (those without parent), sorted by order
       const rootElements = this.filteredElements
@@ -596,6 +617,10 @@ export default {
         const response = await axios.get('/api/user');
         this.user = response.data.user;
         if (this.user) {
+          // Restore lock state per-user (client-side for now)
+          const storedLock = localStorage.getItem(`lockedElementId:${this.user.id}`);
+          this.lockedElementId = storedLock ? Number(storedLock) : null;
+
           // Initialize headline from headline (or empty string if null)
           // Width limitation is handled dynamically by checkHeadlineWidth() method
           const rawHeadline = this.user.headline !== null && this.user.headline !== undefined ? this.user.headline : '';
@@ -611,6 +636,7 @@ export default {
           await this.loadElements();
         } else {
           this.headline = '';
+          this.lockedElementId = null;
           // For non-authenticated users, use localStorage
           const storedLang = localStorage.getItem('lang');
           if (storedLang) {
@@ -625,6 +651,7 @@ export default {
         console.error('Error checking auth:', error);
         this.user = null;
         this.headline = '';
+        this.lockedElementId = null;
         // For non-authenticated users, use localStorage
         const storedLang = localStorage.getItem('lang');
         if (storedLang) {
@@ -636,6 +663,17 @@ export default {
         }
       } finally {
         this.loading = false;
+      }
+    },
+    toggleLock(elementId) {
+      // Only one locked element per user
+      this.lockedElementId = this.lockedElementId === elementId ? null : elementId;
+      if (this.user?.id) {
+        if (this.lockedElementId) {
+          localStorage.setItem(`lockedElementId:${this.user.id}`, String(this.lockedElementId));
+        } else {
+          localStorage.removeItem(`lockedElementId:${this.user.id}`);
+        }
       }
     },
     async handleRegister() {
