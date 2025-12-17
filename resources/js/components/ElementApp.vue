@@ -313,10 +313,19 @@ export default {
 
         // Only add children if element is not collapsed
         if (!this.collapsedElements[element.id]) {
-          // Find and add children, sorted by order
+          // Find and add children, sorted by archived status (in 'both' mode) and order
           const children = this.filteredElements
             .filter(e => e.parent_element_id === element.id)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
+            .sort((a, b) => {
+              // In 'both' mode, show active elements before archived ones
+              if (this.viewMode === 'both') {
+                if (a.archived !== b.archived) {
+                  return a.archived ? 1 : -1; // active (false) comes before archived (true)
+                }
+              }
+              // Then by order
+              return (a.order || 0) - (b.order || 0);
+            });
           children.forEach(child => {
             // Use calculated level instead of just incrementing
             const childLevel = calculateLevel(child.id);
@@ -346,7 +355,7 @@ export default {
       }
 
       // First, add all root elements (those without parent OR whose parent is not in filtered view)
-      // Sort them by their calculated level first, then by order
+      // Sort them by their calculated level first, then by archived status (in 'both' mode), then by order
       const rootElements = this.filteredElements
         .filter(e => isRootInFilteredView(e.id))
         .map(e => ({
@@ -357,6 +366,12 @@ export default {
           // First sort by level (lower levels first)
           if (a.level !== b.level) {
             return a.level - b.level;
+          }
+          // In 'both' mode, show active elements before archived ones
+          if (this.viewMode === 'both') {
+            if (a.element.archived !== b.element.archived) {
+              return a.element.archived ? 1 : -1; // active (false) comes before archived (true)
+            }
           }
           // Then by order
           return (a.element.order || 0) - (b.element.order || 0);
@@ -390,6 +405,12 @@ export default {
           // First sort by level (lower levels first)
           if (a.level !== b.level) {
             return a.level - b.level;
+          }
+          // In 'both' mode, show active elements before archived ones
+          if (this.viewMode === 'both') {
+            if (a.element.archived !== b.element.archived) {
+              return a.element.archived ? 1 : -1; // active (false) comes before archived (true)
+            }
           }
           // Then by order
           return (a.element.order || 0) - (b.element.order || 0);
