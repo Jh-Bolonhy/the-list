@@ -985,15 +985,27 @@ export default {
     },
 
     async toggleElement(element) {
+      // Optimistic update: update UI immediately
+      const index = this.elements.findIndex(e => e.id === element.id);
+      if (index === -1) return;
+      
+      const originalCompleted = element.completed;
+      const newCompleted = !originalCompleted;
+      
+      // Update local state immediately
+      this.elements[index].completed = newCompleted;
+      
       try {
         const response = await axios.put(`/api/elements/${element.id}`, {
-          completed: !element.completed
+          completed: newCompleted
         });
-        const index = this.elements.findIndex(e => e.id === element.id);
-        if (index !== -1) {
+        // Update with server response (in case server made adjustments)
+        if (response.data) {
           this.elements[index] = response.data;
         }
       } catch (error) {
+        // Rollback on error
+        this.elements[index].completed = originalCompleted;
         this.handleError(error, 'failedUpdate', false);
       }
     },
