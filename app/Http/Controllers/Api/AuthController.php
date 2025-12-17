@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Models\Element;
 use Illuminate\Http\Request;
@@ -44,15 +45,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'User registered successfully',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'headline' => $user->headline, // Always return headline, even if null
-                'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
-                'show_mode' => $user->show_mode ?? 'active', // Always return show_mode, default to 'active'
-                'locked_element_id' => $user->locked_element_id,
-                'email' => $user->email,
-            ],
+            'user' => new UserResource($user),
             'csrf_token' => csrf_token()
         ], 201);
     }
@@ -73,15 +66,7 @@ class AuthController extends Controller
 
                 return response()->json([
                     'message' => 'Login successful',
-                    'user' => [
-                        'id' => Auth::id(),
-                        'name' => Auth::user()->name,
-                        'headline' => Auth::user()->headline, // Always return headline, even if null
-                        'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
-                        'show_mode' => Auth::user()->show_mode ?? 'active', // Always return show_mode, default to 'active'
-                        'locked_element_id' => Auth::user()->locked_element_id,
-                        'email' => Auth::user()->email,
-                    ],
+                    'user' => new UserResource(Auth::user()),
                     'csrf_token' => csrf_token()
                 ]);
             }
@@ -117,26 +102,10 @@ class AuthController extends Controller
      */
     public function user(Request $request): JsonResponse
     {
-        $response = [];
-        
-        if (Auth::check()) {
-            $response['user'] = [
-                'id' => Auth::id(),
-                'name' => Auth::user()->name,
-                'headline' => Auth::user()->headline, // Always return headline, even if null
-                'locale' => Auth::user()->locale ?? 'en', // Always return locale, default to 'en'
-                'show_mode' => Auth::user()->show_mode ?? 'active', // Always return show_mode, default to 'active'
-                'locked_element_id' => Auth::user()->locked_element_id,
-                'email' => Auth::user()->email,
-            ];
-        } else {
-            $response['user'] = null;
-        }
-        
-        // Always include CSRF token
-        $response['csrf_token'] = csrf_token();
-        
-        return response()->json($response);
+        return response()->json([
+            'user' => Auth::check() ? new UserResource(Auth::user()) : null,
+            'csrf_token' => csrf_token(),
+        ]);
     }
     
     /**
@@ -164,15 +133,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Headline updated successfully',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'headline' => $user->headline, // Always return headline, even if null
-                'locale' => $user->locale ?? 'en', // Always return locale, default to 'en'
-                'show_mode' => $user->show_mode ?? 'active',
-                'locked_element_id' => $user->locked_element_id,
-                'email' => $user->email,
-            ]
+            'user' => new UserResource($user),
         ]);
     }
     
@@ -191,15 +152,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Locale updated successfully',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'headline' => $user->headline,
-                'locale' => $user->locale,
-                'show_mode' => $user->show_mode ?? 'active',
-                'locked_element_id' => $user->locked_element_id,
-                'email' => $user->email,
-            ]
+            'user' => new UserResource($user),
         ]);
     }
     
@@ -218,15 +171,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Show mode updated successfully',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'headline' => $user->headline,
-                'locale' => $user->locale ?? 'en',
-                'show_mode' => $user->show_mode,
-                'locked_element_id' => $user->locked_element_id,
-                'email' => $user->email,
-            ]
+            'user' => new UserResource($user),
         ]);
     }
 
@@ -264,15 +209,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Locked element updated successfully',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'headline' => $user->headline,
-                'locale' => $user->locale ?? 'en',
-                'show_mode' => $user->show_mode ?? 'active',
-                'locked_element_id' => $user->locked_element_id,
-                'email' => $user->email,
-            ]
+            'user' => new UserResource($user),
         ]);
     }
 }

@@ -246,179 +246,164 @@ export default {
     hierarchicalElements() {
       const result = [];
       const processed = new Set();
-      const lockedId = this.lockedElementId;
-      
-      // Map of ALL elements (not just filtered) for calculating correct levels
-      const allById = new Map(this.elements.map(e => [e.id, e]));
-      // Map of filtered elements for display
-      const filteredById = new Map(this.filteredElements.map(e => [e.id, e]));
 
-      // Calculate the real level of an element by traversing up the parent chain
-      // This works even if parents are not in the current filter
+      const lockedId = this.lockedElementId;
+      const viewMode = this.viewMode;
+
+      const filtered = this.filteredElements;
+      const filteredById = new Map(filtered.map(e => [e.id, e]));
+      const allById = new Map(this.elements.map(e => [e.id, e]));
+
+      // Shared comparator for any "siblings list"
+      // In 'both' mode: active first, then archived; always then by order.
+      const compareWithinGroup = (a, b) => {
+        if (viewMode === 'both' && a.archived !== b.archived) {
+          return a.archived ? 1 : -1;
+        }
+        return (a.order || 0) - (b.order || 0);
+      };
+
+      // Build adjacency list for fast child lookup (filtered-only)
+      const childrenByParent = new Map();
+      for (const e of filtered) {
+        const parentId = e.parent_element_id ?? null;
+        if (!childrenByParent.has(parentId)) {
+          childrenByParent.set(parentId, []);
+        }
+        childrenByParent.get(parentId).push(e);
+      }
+      for (const children of childrenByParent.values()) {
+        children.sort(compareWithinGroup);
+      }
+
+      // Memoized "real" level: traverses full parent chain (all elements),
+      // so archived-only view can still indent correctly even when parents are active and filtered out.
+      const levelCache = new Map();
+      const visiting = new Set();
       const calculateLevel = (elementId) => {
         if (lockedId && elementId === lockedId) {
-          return 0; // Locked element is always level 0
+          return 0;
         }
-        
+        if (levelCache.has(elementId)) {
+          return levelCache.get(elementId);
+        }
+        if (visiting.has(elementId)) {
+          // Safety for corrupt cycles; treat as root
+          return 0;
+        }
+        visiting.add(elementId);
+
         const element = allById.get(elementId);
-        if (!element || !element.parent_element_id) {
-          return 0; // Root element
+        let level = 0;
+        if (element && element.parent_element_id) {
+          if (lockedId && element.parent_element_id === lockedId) {
+            level = 1;
+          } else {
+            level = calculateLevel(element.parent_element_id) + 1;
+          }
         }
-        
-        // If parent is the locked element, this is level 1
-        if (lockedId && element.parent_element_id === lockedId) {
-          return 1;
-        }
-        
-        // Recursively calculate parent's level and add 1
-        return calculateLevel(element.parent_element_id) + 1;
+
+        visiting.delete(elementId);
+        levelCache.set(elementId, level);
+        return level;
       };
 
-      // Helper function to check if any parent is collapsed
+      // Collapse propagation is limited to what is actually visible in the current filtered view.
       const isAnyParentCollapsed = (elementId) => {
         if (lockedId && elementId === lockedId) {
-          return false; // locked root should not be affected by ancestors outside the subtree
-        }
-        const element = filteredById.get(elementId);
-        if (!element || !element.parent_element_id) {
           return false;
         }
-        // Stop collapse propagation above the locked root
-        if (lockedId && element.parent_element_id === lockedId) {
-          return !!this.collapsedElements[lockedId];
+        let cur = filteredById.get(elementId);
+        while (cur && cur.parent_element_id) {
+          const parentId = cur.parent_element_id;
+          // Stop collapse propagation above the locked root
+          if (lockedId && parentId === lockedId) {
+            return !!this.collapsedElements[lockedId];
+          }
+          if (this.collapsedElements[parentId]) {
+            return true;
+          }
+          cur = filteredById.get(parentId);
         }
-        if (this.collapsedElements[element.parent_element_id]) {
-          return true;
-        }
-        return isAnyParentCollapsed(element.parent_element_id);
+        return false;
       };
 
-      // Helper function to add element and its children recursively
-      const addElementAndChildren = (element, level = 0) => {
+      const addSubtree = (element, level) => {
         if (processed.has(element.id)) {
           return;
         }
-
-        // Skip element if any of its parents is collapsed
         if (isAnyParentCollapsed(element.id)) {
           return;
         }
 
-        // Add element with level information
-        result.push({
-          ...element,
-          level: level
-        });
+        result.push({ ...element, level });
         processed.add(element.id);
 
-        // Only add children if element is not collapsed
-        if (!this.collapsedElements[element.id]) {
-          // Find and add children, sorted by archived status (in 'both' mode) and order
-          const children = this.filteredElements
-            .filter(e => e.parent_element_id === element.id)
-            .sort((a, b) => {
-              // In 'both' mode, show active elements before archived ones
-              if (this.viewMode === 'both') {
-                if (a.archived !== b.archived) {
-                  return a.archived ? 1 : -1; // active (false) comes before archived (true)
-                }
-              }
-              // Then by order
-              return (a.order || 0) - (b.order || 0);
-            });
-          children.forEach(child => {
-            // Use calculated level instead of just incrementing
-            const childLevel = calculateLevel(child.id);
-            addElementAndChildren(child, childLevel);
-          });
+        if (this.collapsedElements[element.id]) {
+          return;
+        }
+
+        const children = childrenByParent.get(element.id) || [];
+        for (const child of children) {
+          addSubtree(child, level + 1);
         }
       };
 
-      // Helper function to check if element is a root in the filtered view
-      // (either has no parent, or parent is not in filtered elements)
-      const isRootInFilteredView = (elementId) => {
-        const element = allById.get(elementId);
-        if (!element || !element.parent_element_id) {
-          return true; // No parent in all elements = root
-        }
-        // If parent exists but is not in filtered elements, this is a "virtual root" in filtered view
-        return !filteredById.has(element.parent_element_id);
-      };
-
-      // If a lock is active, show only the locked element and its descendants (levels start at 0)
-      if (lockedId) {
+      // LOCK: only apply if the locked element exists in the current filtered view.
+      // Levels in lock mode are relative to the locked element (start from 0).
+      if (lockedId && filteredById.has(lockedId)) {
         const lockedElement = filteredById.get(lockedId);
-        if (lockedElement) {
-          addElementAndChildren(lockedElement, 0);
-          return result;
-        }
+        addSubtree(lockedElement, 0);
+        return result;
       }
 
-      // First, add all root elements (those without parent OR whose parent is not in filtered view)
-      // Sort them by their calculated level first, then by archived status (in 'both' mode), then by order
-      const rootElements = this.filteredElements
-        .filter(e => isRootInFilteredView(e.id))
-        .map(e => ({
-          element: e,
-          level: calculateLevel(e.id)
-        }))
-        .sort((a, b) => {
-          // First sort by level (lower levels first)
-          if (a.level !== b.level) {
-            return a.level - b.level;
-          }
-          // In 'both' mode, show active elements before archived ones
-          if (this.viewMode === 'both') {
-            if (a.element.archived !== b.element.archived) {
-              return a.element.archived ? 1 : -1; // active (false) comes before archived (true)
-            }
-          }
-          // Then by order
-          return (a.element.order || 0) - (b.element.order || 0);
-        });
-      
-      rootElements.forEach(({ element, level }) => {
-        addElementAndChildren(element, level);
-      });
+      // Root in filtered view: no parent OR parent is not present in the filtered set (virtual root)
+      const isRootInFilteredView = (e) => !e.parent_element_id || !filteredById.has(e.parent_element_id);
 
-      // Then add any remaining elements that might have been missed (orphaned children)
-      // These should be added in the correct hierarchical order
-      // Only add elements that don't have a parent in the filtered view (to avoid duplicates)
-      const remainingElements = this.filteredElements
-        .filter(e => {
-          if (processed.has(e.id)) {
-            return false; // Already processed
-          }
-          // Only add if parent is not in filtered view (to avoid adding as child of filtered parent)
-          const element = allById.get(e.id);
-          if (!element || !element.parent_element_id) {
-            return true; // No parent = orphaned root
-          }
-          // If parent is in filtered view, it should have been added as child, so skip
-          return !filteredById.has(element.parent_element_id);
-        })
-        .map(e => ({
-          element: e,
-          level: calculateLevel(e.id)
-        }))
+      // Roots: sort by calculated level first (so virtual roots at deeper levels appear after shallow),
+      // then by parent group, then within-group comparator.
+      const roots = filtered
+        .filter(isRootInFilteredView)
+        .slice()
         .sort((a, b) => {
-          // First sort by level (lower levels first)
-          if (a.level !== b.level) {
-            return a.level - b.level;
+          const la = calculateLevel(a.id);
+          const lb = calculateLevel(b.id);
+          if (la !== lb) {
+            return la - lb;
           }
-          // In 'both' mode, show active elements before archived ones
-          if (this.viewMode === 'both') {
-            if (a.element.archived !== b.element.archived) {
-              return a.element.archived ? 1 : -1; // active (false) comes before archived (true)
-            }
+          const pa = a.parent_element_id ?? 0;
+          const pb = b.parent_element_id ?? 0;
+          if (pa !== pb) {
+            return pa - pb;
           }
-          // Then by order
-          return (a.element.order || 0) - (b.element.order || 0);
+          return compareWithinGroup(a, b);
         });
-      
-      remainingElements.forEach(({ element, level }) => {
-        addElementAndChildren(element, level);
-      });
+
+      for (const root of roots) {
+        addSubtree(root, calculateLevel(root.id));
+      }
+
+      // Safety: add anything still unprocessed (corrupt/missing links), in a stable order
+      const leftovers = filtered
+        .filter(e => !processed.has(e.id))
+        .slice()
+        .sort((a, b) => {
+          const la = calculateLevel(a.id);
+          const lb = calculateLevel(b.id);
+          if (la !== lb) {
+            return la - lb;
+          }
+          const pa = a.parent_element_id ?? 0;
+          const pb = b.parent_element_id ?? 0;
+          if (pa !== pb) {
+            return pa - pb;
+          }
+          return compareWithinGroup(a, b);
+        });
+
+      for (const e of leftovers) {
+        addSubtree(e, calculateLevel(e.id));
+      }
 
       return result;
     }
