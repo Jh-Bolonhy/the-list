@@ -70,6 +70,9 @@
           <div
             ref="titleScrollContainer"
             class="scrollable-text-container"
+            :style="{
+              paddingRight: hasChildren && !element.archived ? '4.5rem' : '2.25rem'
+            }"
             @mousedown="startScroll($event, 'title')"
           >
             <h3
@@ -85,10 +88,14 @@
           </div>
           <!-- Gradient fade overlay for title -->
           <div
-            class="absolute right-0 top-0 bottom-0 pointer-events-none z-10"
+            class="absolute right-0 pointer-events-none z-10"
             :style="{
               width: '2rem',
+              height: '1.5rem',
+              top: '50%',
               right: hasChildren && !element.archived ? '4.25rem' : '2rem',
+              transform: 'translateY(-50%)',
+              borderRadius: '0.25rem',
               background: `linear-gradient(to right, transparent, ${element.archived ? '#e5e7eb' : '#f9fafb'})`
             }"
           ></div>
