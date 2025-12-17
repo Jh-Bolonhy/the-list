@@ -66,13 +66,12 @@
         </div>
       </div>
       <div v-else class="overflow-hidden relative">
-        <div class="relative">
+        <div class="relative overflow-hidden" :style="{
+          paddingRight: hasChildren && !element.archived ? '4.5rem' : '2.25rem'
+        }">
           <div
             ref="titleScrollContainer"
             class="scrollable-text-container"
-            :style="{
-              paddingRight: hasChildren && !element.archived ? '4.5rem' : '2.25rem'
-            }"
             @mousedown="startScroll($event, 'title')"
           >
             <h3
