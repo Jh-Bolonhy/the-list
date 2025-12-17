@@ -681,42 +681,6 @@ export default {
 </script>
 
 <style scoped>
-.scrollable-text-container {
-  overflow-x: auto;
-  overflow-y: hidden;
-  /* Hide scrollbar but keep functionality */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  cursor: grab;
-  /* Smooth scrolling */
-  scroll-behavior: auto; /* Disable smooth scroll during drag */
-  /* Ensure container can scroll */
-  position: relative;
-  width: 100%;
-}
-
-.scrollable-text-container::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
-}
-
-.scrollable-text-container:active {
-  cursor: grabbing;
-}
-
-.scrollable-text-container h3,
-.scrollable-text-container p {
-  /* Ensure text doesn't wrap */
-  white-space: nowrap;
-  /* Prevent text selection during drag */
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  /* Display inline-block to allow proper width calculation */
-  display: inline-block;
-  min-width: 100%;
-}
-
 /* Description wrapper */
 .description-wrapper {
   position: relative;
@@ -788,31 +752,6 @@ export default {
   overflow-y: auto;
   overflow-x: hidden;
   /* Scrollbar styling is shared via .styled-scrollbar */
-}
-
-/* Shared styled scrollbar (use everywhere going forward) */
-.styled-scrollbar {
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* Firefox: thumb and track */
-  -ms-overflow-style: auto; /* IE and old Edge */
-}
-
-.styled-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.styled-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 3px;
-}
-
-.styled-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 3px;
-}
-
-.styled-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.7);
 }
 
 /* Edit modal textarea: max 4 lines visible, then scroll */
