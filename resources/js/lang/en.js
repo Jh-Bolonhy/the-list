@@ -50,5 +50,6 @@ export default {
   settings: 'Settings',
   forHeader: 'For header:',
   defaultHeader: 'Your List',
-  clickToEdit: 'Click to edit'
+  clickToEdit: 'Click to edit',
+  createPath: 'Creating under:'
 };

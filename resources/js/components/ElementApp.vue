@@ -145,6 +145,8 @@
     <AddElementModal
       :show="showAddModal"
       :t="t"
+      :locked-element-id="lockedElementId"
+      :elements="elements"
       @close="closeAddModal"
       @submit="handleAddElement"
     />
@@ -225,9 +227,9 @@ export default {
     // Filtered elements based on viewMode
     filteredElements() {
       if (this.viewMode === 'active') {
-        return this.elements.filter(e => !e.archived);
+        return this.elements.filter(e => !Boolean(e.archived));
       } else if (this.viewMode === 'archived') {
-        return this.elements.filter(e => e.archived);
+        return this.elements.filter(e => Boolean(e.archived));
       }
       // 'both' - return all elements
       return this.elements;
@@ -257,10 +259,15 @@ export default {
       // Shared comparator for any "siblings list"
       // In 'both' mode: active first, then archived; always then by order.
       const compareWithinGroup = (a, b) => {
-        if (viewMode === 'both' && a.archived !== b.archived) {
-          return a.archived ? 1 : -1;
+        const aArchived = Boolean(a.archived);
+        const bArchived = Boolean(b.archived);
+        if (viewMode === 'both' && aArchived !== bArchived) {
+          return aArchived ? 1 : -1;
         }
-        return (a.order || 0) - (b.order || 0);
+        // Ensure order is a number for proper comparison
+        const orderA = Number(a.order) || 0;
+        const orderB = Number(b.order) || 0;
+        return orderA - orderB;
       };
 
       // Build adjacency list for fast child lookup (filtered-only)
@@ -271,9 +278,6 @@ export default {
           childrenByParent.set(parentId, []);
         }
         childrenByParent.get(parentId).push(e);
-      }
-      for (const children of childrenByParent.values()) {
-        children.sort(compareWithinGroup);
       }
 
       // Memoized "real" level: traverses full parent chain (all elements),
@@ -343,7 +347,10 @@ export default {
           return;
         }
 
-        const children = childrenByParent.get(element.id) || [];
+        // Always sort children at traversal time (avoids any transient ordering glitches)
+        const children = (childrenByParent.get(element.id) || [])
+          .slice()
+          .sort(compareWithinGroup);
         for (const child of children) {
           addSubtree(child, level + 1);
         }
@@ -885,7 +892,16 @@ export default {
         this.loading = true;
         // Always load all elements - filtering is done by computed property
         const response = await axios.get('/api/elements');
-        this.elements = response.data;
+        // Normalize types from backend (booleans sometimes arrive as 0/1 during optimistic updates)
+        this.elements = (response.data || []).map((e) => ({
+          ...e,
+          id: Number(e.id),
+          parent_element_id: e.parent_element_id === null || e.parent_element_id === undefined ? null : Number(e.parent_element_id),
+          order: e.order === null || e.order === undefined ? e.order : Number(e.order),
+          archived: Boolean(e.archived),
+          completed: Boolean(e.completed),
+          collapsed: Boolean(e.collapsed),
+        }));
 
         // Load collapsed state from elements
         const collapsedState = {};
@@ -972,11 +988,60 @@ export default {
 
     async handleAddElement(newElementData) {
       try {
-        const response = await axios.post('/api/elements', newElementData);
-        const newElement = response.data;
+        // If locked element exists, set it as parent
+        // Server will calculate the correct order automatically
+        if (this.lockedElementId) {
+          newElementData.parent_element_id = this.lockedElementId;
+        }
 
-        // Add to elements array (filtering is handled by computed property)
-        this.elements.unshift(newElement);
+        const response = await axios.post('/api/elements', newElementData);
+        const rawNewElement = response.data;
+        const newElement = {
+          ...rawNewElement,
+          id: Number(rawNewElement.id),
+          parent_element_id: rawNewElement.parent_element_id === null || rawNewElement.parent_element_id === undefined
+            ? null
+            : Number(rawNewElement.parent_element_id),
+          order: rawNewElement.order === null || rawNewElement.order === undefined ? rawNewElement.order : Number(rawNewElement.order),
+          archived: Boolean(rawNewElement.archived),
+          completed: Boolean(rawNewElement.completed),
+          collapsed: Boolean(rawNewElement.collapsed),
+        };
+
+        // Ensure order is set from server response and is a number
+        if (newElement.order === undefined || newElement.order === null) {
+          // Fallback: calculate order locally if server didn't provide it
+          const parentId = newElement.parent_element_id;
+          const siblings = this.elements.filter(e => e.parent_element_id === parentId);
+          newElement.order = siblings.length > 0 
+            ? Math.max(...siblings.map(e => Number(e.order) || 0)) + 1
+            : 1;
+        } else {
+          // Ensure order is a number, not a string
+          newElement.order = Number(newElement.order);
+        }
+
+        // Add to local state (normalized)
+        this.elements = [...this.elements, newElement];
+
+        // IMPORTANT:
+        // Immediately normalize local ordering to match server-side ordering.
+        // This prevents the "new element appears at the top until reload" glitch.
+        this.elements.sort((a, b) => {
+          const pa = a.parent_element_id ?? null;
+          const pb = b.parent_element_id ?? null;
+          if (pa !== pb) {
+            if (pa === null) return -1;
+            if (pb === null) return 1;
+            return Number(pa) - Number(pb);
+          }
+          const oa = Number(a.order) || 0;
+          const ob = Number(b.order) || 0;
+          if (oa !== ob) {
+            return oa - ob;
+          }
+          return new Date(a.created_at) - new Date(b.created_at);
+        });
 
         this.closeAddModal();
       } catch (error) {

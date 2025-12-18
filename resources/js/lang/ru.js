@@ -50,5 +50,6 @@ export default {
   settings: 'Настройки',
   forHeader: 'В заголовке:',
   defaultHeader: 'Ваш Список',
-  clickToEdit: 'Редактировать'
+  clickToEdit: 'Редактировать',
+  createPath: 'Создание в:'
 };

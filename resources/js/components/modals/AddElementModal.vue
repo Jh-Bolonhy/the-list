@@ -19,6 +19,16 @@
               </svg>
             </button>
           </div>
+          <!-- Path display when locked element exists -->
+          <div v-if="elementPath.length > 0" class="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+            <div class="text-xs text-gray-500 mb-1">{{ t('createPath') || 'Creating under:' }}</div>
+            <div class="text-sm text-gray-700 flex flex-wrap items-center gap-1">
+              <span v-for="(item, index) in elementPath" :key="item.id" class="flex items-center">
+                <span class="font-medium">{{ item.title }}</span>
+                <span v-if="index < elementPath.length - 1" class="mx-1 text-gray-400">/</span>
+              </span>
+            </div>
+          </div>
           <form @submit.prevent="$emit('submit', newElement)" class="space-y-4">
             <div>
               <label for="modal-title" class="block text-sm font-medium text-gray-700 mb-1">{{ t('title') }}</label>
@@ -65,7 +75,7 @@
 </template>
 
 <script>
-import { ref, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 
 export default {
   name: 'AddElementModal',
@@ -77,12 +87,42 @@ export default {
     t: {
       type: Function,
       required: true
+    },
+    lockedElementId: {
+      type: Number,
+      default: null
+    },
+    elements: {
+      type: Array,
+      default: () => []
     }
   },
   emits: ['close', 'submit'],
   setup(props, { emit }) {
     const newElement = ref({ title: '', description: '' });
     const titleInput = ref(null);
+
+    // Build path from root to locked element
+    const elementPath = computed(() => {
+      if (!props.lockedElementId || !props.elements.length) {
+        return [];
+      }
+
+      const path = [];
+      const elementsById = new Map(props.elements.map(e => [e.id, e]));
+      let currentId = props.lockedElementId;
+
+      // Traverse from locked element to root
+      while (currentId !== null && currentId !== undefined) {
+        const element = elementsById.get(currentId);
+        if (!element) break;
+        
+        path.unshift(element); // Add to beginning to build path from root
+        currentId = element.parent_element_id;
+      }
+
+      return path;
+    });
 
     const handleSubmit = () => {
       emit('submit', { ...newElement.value });
@@ -103,7 +143,8 @@ export default {
     return {
       newElement,
       titleInput,
-      handleSubmit
+      handleSubmit,
+      elementPath
     };
   }
 };
