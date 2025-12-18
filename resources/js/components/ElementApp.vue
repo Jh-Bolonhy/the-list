@@ -58,34 +58,36 @@
       />
 
       <!-- Main App Content (only shown when authenticated) -->
-      <div v-if="user" class="bg-white rounded-lg shadow-lg p-6 white-background-container">
+      <div v-if="user" class="bg-white rounded-lg shadow-lg p-6 white-background-container flex flex-col">
         <!-- Header -->
-        <AppHeader
-          :user="user"
-          v-model:headline="headline"
-          :headline-display="getHeaderDisplay()"
-          :is-editing-headline="isEditingHeadline"
-          :initial-headline-width="initialHeadlineWidth"
-          :max-headline-width="maxHeadlineWidth"
-          :view-mode="viewMode"
-          :active-count="activeCount"
-          :active-completed-count="activeCompletedCount"
-          :archived-count="archivedCount"
-          :lang="lang"
-          :t="t"
-          ref="headerRow"
-          @start-editing="startEditingHeadline"
-          @headline-input="checkHeadlineWidth"
-          @finish-editing="finishEditingHeadline"
-          @cancel-editing="cancelEditingHeadline"
-          @show-add-modal="showAddModal = true"
-          @view-mode-change="setViewMode($event)"
-          @lang-change="setLang($event)"
-          @logout="handleLogout"
-        />
+        <div class="flex-shrink-0">
+          <AppHeader
+            :user="user"
+            v-model:headline="headline"
+            :headline-display="getHeaderDisplay()"
+            :is-editing-headline="isEditingHeadline"
+            :initial-headline-width="initialHeadlineWidth"
+            :max-headline-width="maxHeadlineWidth"
+            :view-mode="viewMode"
+            :active-count="activeCount"
+            :active-completed-count="activeCompletedCount"
+            :archived-count="archivedCount"
+            :lang="lang"
+            :t="t"
+            ref="headerRow"
+            @start-editing="startEditingHeadline"
+            @headline-input="checkHeadlineWidth"
+            @finish-editing="finishEditingHeadline"
+            @cancel-editing="cancelEditingHeadline"
+            @show-add-modal="showAddModal = true"
+            @view-mode-change="setViewMode($event)"
+            @lang-change="setLang($event)"
+            @logout="handleLogout"
+          />
+        </div>
 
         <!-- Element List -->
-        <div class="space-y-4 element-list-container">
+        <div class="space-y-4 element-list-container flex-1 overflow-y-auto styled-scrollbar">
 
           <div v-if="loading" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -2351,10 +2353,10 @@ export default {
      which should prevent overflow, but overflow: hidden above provides protection */
 }
 
-/* White background container - minimum height equals viewport height minus top/bottom padding */
+/* White background container - fixed height for scrolling */
 /* Parent container has py-8 (2rem top + 2rem bottom = 4rem total) */
 .bg-white.rounded-lg.shadow-lg {
-  min-height: calc(100vh - 4rem);
+  height: calc(100vh - 4rem);
 }
 
 /* Ensure white background container maintains static width during animations */
@@ -2363,7 +2365,7 @@ export default {
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
-  overflow-y: visible;
+  overflow-y: hidden; /* Container itself doesn't scroll */
   /* Prevent width changes during any animations */
   position: relative;
   /* Isolate layout to prevent shifting during child animations */
@@ -2372,13 +2374,15 @@ export default {
   isolation: isolate;
 }
 
-/* Ensure element list container doesn't expand beyond white background */
+/* Element list container - scrollable area */
 .element-list-container {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
-  overflow-y: visible;
+  overflow-y: auto; /* Enable vertical scrolling */
+  /* Add padding for scrollbar if needed */
+  padding-right: 0.5rem;
 }
 
 /* Prevent main content wrapper from shifting during animations */
