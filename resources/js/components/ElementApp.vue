@@ -1022,6 +1022,37 @@ export default {
       });
     },
 
+    handleKeyPress(event) {
+      // Only handle "+" key when no modals are open and user is authenticated
+      if (!this.user) return;
+      
+      // Check if any modal is open
+      if (this.showAddModal || this.showConfirmModal || this.editingElement) {
+        return;
+      }
+
+      // Check if user is editing headline
+      if (this.isEditingHeadline) {
+        return;
+      }
+
+      // Check if input/textarea is focused (don't trigger when typing in form fields)
+      const activeElement = document.activeElement;
+      if (activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.isContentEditable
+      )) {
+        return;
+      }
+
+      // Handle "+" key (both regular and numpad)
+      if (event.key === '+' || event.key === '=' || (event.shiftKey && event.key === '=')) {
+        event.preventDefault();
+        this.showAddModal = true;
+      }
+    },
+
     async handleAddElement(newElementData) {
       try {
         // If locked element exists, set it as parent
@@ -2231,9 +2262,12 @@ export default {
     // Update max width on window resize
     window.addEventListener('resize', this.updateMaxHeadlineWidth);
     this.updateMaxHeadlineWidth();
+    // Add keyboard listener for "+" key
+    window.addEventListener('keydown', this.handleKeyPress);
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.updateMaxHeadlineWidth);
+    window.removeEventListener('keydown', this.handleKeyPress);
   },
   watch: {
     showAddModal(newVal) {
