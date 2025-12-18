@@ -87,7 +87,7 @@
         </div>
 
         <!-- Element List -->
-        <div class="space-y-4 element-list-container flex-1 overflow-y-auto styled-scrollbar">
+        <div ref="elementListContainer" class="space-y-4 element-list-container flex-1 overflow-y-auto styled-scrollbar">
 
           <div v-if="loading" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -988,6 +988,40 @@ export default {
       this.showAddModal = false;
     },
 
+    scrollToElement(elementId) {
+      // Wait for DOM to update after element is added
+      this.$nextTick(() => {
+        const container = this.$refs.elementListContainer;
+        if (!container) return;
+
+        // Find the element in the DOM by data-element-id attribute
+        const element = container.querySelector(`[data-element-id="${elementId}"]`);
+        if (!element) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+
+        // Check if element is outside visible area
+        const isAbove = elementRect.top < containerRect.top;
+        const isBelow = elementRect.bottom > containerRect.bottom;
+
+        if (isAbove || isBelow) {
+          // Calculate scroll position to center element in viewport
+          const elementTop = element.offsetTop;
+          const elementHeight = element.offsetHeight;
+          const containerHeight = container.clientHeight;
+          
+          // Scroll to show element with some padding
+          const scrollPosition = elementTop - (containerHeight / 2) + (elementHeight / 2);
+          
+          container.scrollTo({
+            top: Math.max(0, scrollPosition),
+            behavior: 'smooth'
+          });
+        }
+      });
+    },
+
     async handleAddElement(newElementData) {
       try {
         // If locked element exists, set it as parent
@@ -1043,6 +1077,11 @@ export default {
             return oa - ob;
           }
           return new Date(a.created_at) - new Date(b.created_at);
+        });
+
+        // Scroll to new element after it's rendered
+        this.$nextTick(() => {
+          this.scrollToElement(newElement.id);
         });
 
         this.closeAddModal();
