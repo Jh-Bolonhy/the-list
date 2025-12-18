@@ -1023,10 +1023,37 @@ export default {
     },
 
     handleKeyPress(event) {
-      // Only handle "+" key when no modals are open and user is authenticated
+      // Only handle keys when user is authenticated
       if (!this.user) return;
-      
-      // Check if any modal is open
+
+      // Handle ESC key to close modals
+      if (event.key === 'Escape' || event.key === 'Esc') {
+        // Check if input/textarea is focused - let default behavior work in form fields
+        const activeElement = document.activeElement;
+        const isInFormField = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+
+        // Priority: ConfirmModal > AddElementModal > Editing Element > Editing Headline
+        if (this.showConfirmModal) {
+          event.preventDefault();
+          this.closeConfirmModal();
+        } else if (this.showAddModal) {
+          event.preventDefault();
+          this.closeAddModal();
+        } else if (this.editingElement) {
+          event.preventDefault();
+          this.cancelEdit();
+        } else if (this.isEditingHeadline && !isInFormField) {
+          event.preventDefault();
+          this.cancelEditingHeadline();
+        }
+        return;
+      }
+
+      // Handle "+" key only when no modals are open
       if (this.showAddModal || this.showConfirmModal || this.editingElement) {
         return;
       }
