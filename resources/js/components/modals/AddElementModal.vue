@@ -24,7 +24,7 @@
             <div class="text-xs text-gray-500 mb-1">{{ t('createPath') || 'Creating under:' }}</div>
             <div class="text-sm text-gray-700 flex flex-wrap items-center gap-1">
               <span v-for="(item, index) in elementPath" :key="item.id" class="flex items-center">
-                <span class="font-medium">{{ item.title }}</span>
+                <span class="font-medium">{{ truncateTitle(item.title) }}</span>
                 <span v-if="index < elementPath.length - 1" class="mx-1 text-gray-400">/</span>
               </span>
             </div>
@@ -124,6 +124,11 @@ export default {
       return path;
     });
 
+    const truncateTitle = (title) => {
+      if (!title) return '';
+      return title.length > 20 ? title.substring(0, 20) + '...' : title;
+    };
+
     const handleSubmit = () => {
       emit('submit', { ...newElement.value });
       newElement.value = { title: '', description: '' };
@@ -144,7 +149,8 @@ export default {
       newElement,
       titleInput,
       handleSubmit,
-      elementPath
+      elementPath,
+      truncateTitle
     };
   }
 };
