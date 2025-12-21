@@ -71,8 +71,18 @@ class ElementController extends Controller
             'parent_element_id' => 'nullable|exists:elements,id'
         ]);
 
-        // Get the maximum order for elements with the same parent_element_id
         $parentId = $request->input('parent_element_id');
+        
+        // Check for circular dependency: parent cannot be a descendant of the new element
+        // (This is not possible for a new element, but we check for consistency)
+        if ($parentId) {
+            $parent = Element::where('user_id', Auth::id())->find($parentId);
+            if (!$parent) {
+                return response()->json(['error' => 'Parent element not found or does not belong to you'], 400);
+            }
+        }
+
+        // Get the maximum order for elements with the same parent_element_id
         $maxOrder = Element::where('user_id', Auth::id())
             ->where('parent_element_id', $parentId)
             ->max('order') ?? 0;
@@ -113,12 +123,19 @@ class ElementController extends Controller
             return response()->json(['error' => 'Element cannot be its own parent'], 400);
         }
 
-        // Ensure parent_element_id belongs to the same user if provided
+        // Check for circular dependency: parent cannot be a descendant of this element
         if ($request->has('parent_element_id') && $request->input('parent_element_id')) {
+            $newParentId = $request->input('parent_element_id');
             $parent = Element::where('user_id', Auth::id())
-                ->find($request->input('parent_element_id'));
+                ->find($newParentId);
             if (!$parent) {
                 return response()->json(['error' => 'Parent element not found or does not belong to you'], 400);
+            }
+
+            // Check if the new parent is a descendant of this element
+            $descendantIds = $this->collectDescendantIds((int) $id, Auth::id());
+            if (in_array((int) $newParentId, $descendantIds, true)) {
+                return response()->json(['error' => 'Cannot set parent: parent element is a descendant of this element'], 400);
             }
         }
 
@@ -276,6 +293,12 @@ class ElementController extends Controller
             $parent = Element::where('user_id', $userId)->find($newParentId);
             if (!$parent) {
                 return response()->json(['error' => 'Parent element not found or does not belong to you'], 400);
+            }
+
+            // Check for circular dependency: new parent cannot be a descendant of this element
+            $descendantIds = $this->collectDescendantIds((int) $elementId, $userId);
+            if (in_array((int) $newParentId, $descendantIds, true)) {
+                return response()->json(['error' => 'Cannot move element: target parent is a descendant of this element'], 400);
             }
         }
 
