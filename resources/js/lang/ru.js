@@ -51,5 +51,6 @@ export default {
   forHeader: 'В заголовке:',
   defaultHeader: 'Ваш Список',
   clickToEdit: 'Редактировать',
-  createPath: 'Создание в:'
+  createPath: 'Создание в:',
+  cannotNestParent: 'Вы пытаетесь вложить сундук в шкатулку'
 };

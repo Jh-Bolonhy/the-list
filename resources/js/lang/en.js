@@ -51,5 +51,6 @@ export default {
   forHeader: 'For header:',
   defaultHeader: 'Your List',
   clickToEdit: 'Click to edit',
-  createPath: 'Creating under:'
-};
+  createPath: 'Creating under:',
+  cannotNestParent: 'You are trying to nest a chest into a box'
+}; 
