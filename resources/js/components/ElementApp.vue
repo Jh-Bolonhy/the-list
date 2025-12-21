@@ -223,6 +223,8 @@ export default {
       pendingElementId: null, // ID of element pending confirmation
       collapsedElements: {}, // Object mapping element IDs to collapse state (reactive)
       lockedElementId: null, // Only one locked parent per user; when set, show only it + descendants
+      savedScrollPositionActive: null, // Saved scroll position for 'active' and 'both' modes
+      savedScrollPositionArchived: null, // Saved scroll position for 'archived' mode
     };
   },
   computed: {
@@ -548,7 +550,80 @@ export default {
         }
       }
     },
+    /**
+     * Get the ID of the topmost fully visible element in the scroll container
+     * @returns {number|null} - Element ID or null if not found
+     */
+    getTopVisibleElementId() {
+      const container = this.$refs.elementListContainer;
+      if (!container) {
+        return null;
+      }
+
+      const containerRect = container.getBoundingClientRect();
+      const containerTop = containerRect.top;
+      const containerBottom = containerRect.bottom;
+
+      // Find the first element that is at least partially visible in the viewport
+      // and is closest to the top of the visible area
+      let topVisibleElementId = null;
+      let minDistance = Infinity;
+
+      for (let i = 0; i < this.hierarchicalElements.length; i++) {
+        const element = this.hierarchicalElements[i];
+        const elementEl = container.querySelector(`[data-element-id="${element.id}"]`);
+        if (!elementEl) {
+          continue;
+        }
+
+        const elementRect = elementEl.getBoundingClientRect();
+
+        // Check if element is at least partially visible
+        const isVisible = elementRect.bottom > containerTop && elementRect.top < containerBottom;
+
+        if (isVisible) {
+          // Calculate distance from element's top to container's visible top
+          const distance = Math.abs(elementRect.top - containerTop);
+          
+          // If element's top is at or above container's top, it's a candidate
+          if (elementRect.top <= containerTop && distance < minDistance) {
+            minDistance = distance;
+            topVisibleElementId = element.id;
+          }
+        }
+      }
+
+      // If we found a visible element, return it
+      if (topVisibleElementId !== null) {
+        return topVisibleElementId;
+      }
+
+      // If no visible element found, return the first element in the list
+      if (this.hierarchicalElements.length > 0) {
+        return this.hierarchicalElements[0].id;
+      }
+
+      return null;
+    },
     async setViewMode(newViewMode) {
+      // Save the ID of the topmost fully visible element before changing view mode
+      const topElementId = this.getTopVisibleElementId();
+
+      // Determine which position to save based on current mode
+      const isCurrentModeArchived = this.viewMode === 'archived';
+      const isNewModeArchived = newViewMode === 'archived';
+
+      // Save current position before switching
+      if (topElementId !== null) {
+        if (isCurrentModeArchived) {
+          // Save position for archived mode
+          this.savedScrollPositionArchived = topElementId;
+        } else {
+          // Save position for active/both modes
+          this.savedScrollPositionActive = topElementId;
+        }
+      }
+
       this.viewMode = newViewMode;
       // Always save to localStorage (works for both authenticated and non-authenticated users)
       localStorage.setItem('viewMode', newViewMode);
@@ -567,6 +642,36 @@ export default {
 
       // Reload elements after view mode change
       await this.loadElements();
+
+      // Restore scroll position based on new mode
+      let positionToRestore = null;
+      if (isNewModeArchived) {
+        positionToRestore = this.savedScrollPositionArchived;
+      } else {
+        positionToRestore = this.savedScrollPositionActive;
+      }
+
+      if (positionToRestore !== null) {
+        this.$nextTick(() => {
+          // Wait for hierarchicalElements to update
+          this.$nextTick(() => {
+            // Try to find the same element in the new view
+            const elementExists = this.hierarchicalElements.some(e => e.id === positionToRestore);
+            if (elementExists) {
+              // Element exists in new view, scroll to it and align to top
+              this.scrollToElement(positionToRestore, true);
+            } else {
+              // Element doesn't exist in new view, find the nearest element by ID
+              // (elements with similar IDs are likely to be close in the hierarchy)
+              const nearestElement = this.hierarchicalElements.find(e => e.id >= positionToRestore) ||
+                                     this.hierarchicalElements[this.hierarchicalElements.length - 1];
+              if (nearestElement) {
+                this.scrollToElement(nearestElement.id, true);
+              }
+            }
+          });
+        });
+      }
     },
     getHeaderDisplay() {
       // If user is not logged in, show default
@@ -1043,7 +1148,7 @@ export default {
       this.showAddModal = false;
     },
 
-    scrollToElement(elementId) {
+    scrollToElement(elementId, alignToTop = false) {
       // Wait for DOM to update after element is added
       this.$nextTick(() => {
         const container = this.$refs.elementListContainer;
@@ -1056,23 +1161,33 @@ export default {
         const containerRect = container.getBoundingClientRect();
         const elementRect = element.getBoundingClientRect();
 
-        // Check if element is outside visible area
+        // Check if element is outside visible area or needs repositioning
         const isAbove = elementRect.top < containerRect.top;
         const isBelow = elementRect.bottom > containerRect.bottom;
+        const needsReposition = alignToTop && elementRect.top !== containerRect.top;
 
-        if (isAbove || isBelow) {
-          // Calculate scroll position to center element in viewport
-          const elementTop = element.offsetTop;
-          const elementHeight = element.offsetHeight;
-          const containerHeight = container.clientHeight;
-          
-          // Scroll to show element with some padding
-          const scrollPosition = elementTop - (containerHeight / 2) + (elementHeight / 2);
-          
-          container.scrollTo({
-            top: Math.max(0, scrollPosition),
-            behavior: 'smooth'
-          });
+        if (isAbove || isBelow || needsReposition) {
+          if (alignToTop) {
+            // Scroll to align element's top with container's top
+            const elementTop = element.offsetTop;
+            container.scrollTo({
+              top: Math.max(0, elementTop),
+              behavior: 'smooth'
+            });
+          } else {
+            // Calculate scroll position to center element in viewport
+            const elementTop = element.offsetTop;
+            const elementHeight = element.offsetHeight;
+            const containerHeight = container.clientHeight;
+            
+            // Scroll to show element with some padding
+            const scrollPosition = elementTop - (containerHeight / 2) + (elementHeight / 2);
+            
+            container.scrollTo({
+              top: Math.max(0, scrollPosition),
+              behavior: 'smooth'
+            });
+          }
         }
       });
     },
