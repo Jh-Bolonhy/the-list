@@ -422,6 +422,61 @@ export default {
       return locales[this.lang][key] || key;
     },
     /**
+     * Show notification to user
+     * @param {string} messageKey - Translation key for message
+     * @param {string} type - Notification type ('info', 'warning', 'error')
+     */
+    showNotification(messageKey, type = 'info') {
+      const message = this.t(messageKey);
+      if (type === 'warning') {
+        console.warn(messageKey, message);
+      } else if (type === 'error') {
+        console.error(messageKey, message);
+      } else {
+        console.log(messageKey, message);
+      }
+    },
+    /**
+     * Check if an element is a descendant of another element
+     * @param {number} ancestorId - The potential ancestor element ID
+     * @param {number} descendantId - The potential descendant element ID
+     * @returns {boolean} - True if descendantId is a descendant of ancestorId
+     */
+    isDescendant(ancestorId, descendantId) {
+      const ancestor = Number(ancestorId);
+      const target = Number(descendantId);
+
+      if (!Number.isFinite(ancestor) || !Number.isFinite(target)) {
+        return false;
+      }
+
+      if (ancestor === target) {
+        return false; // Element is not its own descendant
+      }
+      
+      // BFS to find all descendants
+      const queue = [ancestor];
+      const visited = new Set([ancestor]);
+      
+      while (queue.length > 0) {
+        const currentId = queue.shift();
+        const children = this.elements.filter(e => Number(e.parent_element_id) === currentId);
+        
+        for (const child of children) {
+          const childId = Number(child.id);
+          if (childId === target) {
+            return true; // Found the descendant
+          }
+          if (Number.isFinite(childId) && !visited.has(childId)) {
+            visited.add(childId);
+            queue.push(childId);
+          }
+        }
+      }
+      
+      return false; // Not a descendant
+    },
+    /**
      * Handle errors with optional reload and alert
      * @param {Error} error - The error object
      * @param {string} messageKey - Translation key for error message
@@ -1693,8 +1748,16 @@ export default {
      * @param {Object} parentElement - The element to become parent
      */
     async handleMiddleDrop(draggedElement, parentElement) {
-      // Prevent element from being its own parent or child
+      // Prevent element from being its own parent
       if (draggedElement.id === parentElement.id) {
+        this.dragOverIndex = null;
+        return;
+      }
+
+      // Check for circular dependency: parent cannot be a descendant of dragged element
+      if (this.isDescendant(draggedElement.id, parentElement.id)) {
+        // Show user-friendly message
+        this.showNotification('cannotNestParent', 'warning');
         this.dragOverIndex = null;
         return;
       }
@@ -1717,7 +1780,12 @@ export default {
           }
         }
       } catch (error) {
-        await this.handleError(error, 'failedUpdate', true);
+        // Check if error is about circular dependency
+        if (error.response?.data?.error?.includes('descendant')) {
+          this.showNotification('cannotNestParent', 'warning');
+        } else {
+          await this.handleError(error, 'failedUpdate', true);
+        }
         this.dragOverIndex = null;
         return;
       }
@@ -2183,12 +2251,27 @@ export default {
       // Determine the new parent based on drop position
       const newParentId = this.determineParentFromDropPosition(actualDropIndex);
 
+      // Check for circular dependency: new parent cannot be a descendant of dragged element
+      if (newParentId !== null) {
+        const newParent = this.elements.find(e => e.id === newParentId);
+        if (newParent && this.isDescendant(originalElement.id, newParent.id)) {
+          // Show user-friendly message
+          this.showNotification('cannotNestParent', 'warning');
+          this.dragOverIndex = null;
+          return;
+        }
+      }
+
       // Move element atomically using the new move API endpoint
       // This ensures parent change and reordering happen in one transaction
       // and DOM updates happen in a single action
       try {
         await this.moveElementAtomically(originalElement, newParentId, actualDropIndex);
       } catch (error) {
+        // Check if error is about circular dependency
+        if (error.response?.data?.error?.includes('descendant')) {
+          this.showNotification('cannotNestParent', 'warning');
+        }
         this.dragOverIndex = null;
         return;
       }
