@@ -52,5 +52,7 @@ export default {
   defaultHeader: 'Your List',
   clickToEdit: 'Click to edit',
   createPath: 'Creating under:',
-  cannotNestParent: 'You are trying to nest a chest into a box'
+  cannotNestParent: 'You are trying to nest a chest into a box',
+  liftedFrom: 'Lifted from',
+  root: 'Root'
 }; 

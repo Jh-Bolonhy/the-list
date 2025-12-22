@@ -107,37 +107,90 @@
             @drop.prevent="handleGlobalDrop"
             @before-leave="onBeforeLeave"
           >
-            <ElementItem
-              v-for="(element, index) in hierarchicalElements"
-              :key="element.id"
-              :element="element"
-              :index="index"
-              :editing-element="editingElement"
-              :dragging-index="draggingIndex"
-              :drag-over-index="dragOverIndex"
-              :hover-element-index="hoverElementIndex"
-              :hover-element-part="hoverElementPart"
-              :element-classes="getElementClasses(index)"
-              :t="t"
-              :format-date="formatDate"
-              @drag-start="handleDragStart"
-              @drag-over="handleDragOver"
-              @drag-leave="handleDragLeave"
-              @drop="handleDrop"
-              @drag-end="handleDragEnd"
-              @toggle="toggleElement"
-              @start-edit="startEdit"
-              @save-edit="saveEdit"
-              @cancel-edit="cancelEdit"
-              @archive="archiveElement"
-              @restore="restoreElement"
-              @remove="removeElement"
-              @toggle-collapse="toggleCollapse"
-              @toggle-lock="toggleLock"
-              :has-children="hasChildren(element.id)"
-              :is-collapsed="collapsedElements[element.id]"
-              :locked-element-id="lockedElementId"
-            />
+            <template v-for="(element, index) in hierarchicalElements" :key="element.id">
+              <!-- Group indicator for archived mode -->
+              <div
+                v-if="element.isGroupIndicator"
+                @click="toggleGroupCollapse(element.groupPathKey)"
+                class="p-3 cursor-pointer transition-all duration-200 group"
+              >
+                <div class="flex items-center flex-wrap gap-x-1 gap-y-1">
+                  <template v-if="element.groupPath.length > 0">
+                    <template v-for="(pathElement, idx) in element.groupPath" :key="pathElement.id">
+                      <span
+                        v-if="idx < element.groupPath.length - 1"
+                        class="italic text-sm text-gray-600 group-hover:text-black transition-colors duration-[400ms]"
+                      >
+                        <span class="border-b border-transparent group-hover:border-black transition-all duration-[400ms]">{{ truncateTitle(pathElement.title) }}</span><span class="mx-1">></span>
+                      </span>
+                      <span
+                        v-else
+                        class="inline-flex items-center italic text-sm text-gray-600 group-hover:text-black whitespace-nowrap transition-colors duration-[400ms]"
+                      >
+                        <span class="border-b border-transparent group-hover:border-black transition-all duration-[400ms]">{{ truncateTitle(pathElement.title) }}</span>
+                        <button
+                          class="ml-1 w-6 h-6 rounded-full flex items-center justify-center bg-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-500 transition-all duration-[400ms] flex-shrink-0"
+                          :class="{ 'rotate-90': !collapsedGroups[element.groupPathKey] }"
+                          @click.stop="toggleGroupCollapse(element.groupPathKey)"
+                          title="Toggle group"
+                        >
+                          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </span>
+                    </template>
+                  </template>
+                  <span
+                    v-else
+                    class="inline-flex items-center italic text-sm text-gray-500 group-hover:text-black whitespace-nowrap transition-colors duration-[400ms]"
+                  >
+                    <span class="border-b border-transparent group-hover:border-black transition-all duration-[400ms]">{{ t('root') || 'Root' }}</span>
+                    <button
+                      class="ml-1 w-6 h-6 rounded-full flex items-center justify-center bg-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-500 transition-all duration-[400ms] flex-shrink-0"
+                      :class="{ 'rotate-90': !collapsedGroups[element.groupPathKey] }"
+                      @click.stop="toggleGroupCollapse(element.groupPathKey)"
+                      title="Toggle group"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </span>
+                </div>
+              </div>
+              <!-- Regular element item -->
+              <ElementItem
+                v-else
+                :element="element"
+                :index="index"
+                :editing-element="editingElement"
+                :dragging-index="draggingIndex"
+                :drag-over-index="dragOverIndex"
+                :hover-element-index="hoverElementIndex"
+                :hover-element-part="hoverElementPart"
+                :element-classes="getElementClasses(index)"
+                :t="t"
+                :format-date="formatDate"
+                @drag-start="handleDragStart"
+                @drag-over="handleDragOver"
+                @drag-leave="handleDragLeave"
+                @drop="handleDrop"
+                @drag-end="handleDragEnd"
+                @toggle="toggleElement"
+                @start-edit="startEdit"
+                @save-edit="saveEdit"
+                @cancel-edit="cancelEdit"
+                @archive="archiveElement"
+                @restore="restoreElement"
+                @remove="removeElement"
+                @toggle-collapse="toggleCollapse"
+                @toggle-lock="toggleLock"
+                :has-children="hasChildren(element.id)"
+                :is-collapsed="collapsedElements[element.id]"
+                :locked-element-id="lockedElementId"
+              />
+            </template>
           </transition-group>
         </div>
       </div>
@@ -222,6 +275,7 @@ export default {
       confirmMessage: '', // Confirmation message
       pendingElementId: null, // ID of element pending confirmation
       collapsedElements: {}, // Object mapping element IDs to collapse state (reactive)
+      collapsedGroups: {}, // Object mapping group paths to collapse state (for archived mode)
       lockedElementId: null, // Only one locked parent per user; when set, show only it + descendants
       savedScrollPositionActive: null, // Saved scroll position for 'active' and 'both' modes
       savedScrollPositionArchived: null, // Saved scroll position for 'archived' mode
@@ -260,6 +314,211 @@ export default {
       const filteredById = new Map(filtered.map(e => [e.id, e]));
       const allById = new Map(this.elements.map(e => [e.id, e]));
 
+      // Special handling for archived mode: group by path and lift to root
+      if (viewMode === 'archived' && !lockedId) {
+        // Build adjacency list for all archived elements (including those with active parents)
+        const archivedElements = this.elements.filter(e => Boolean(e.archived));
+        const archivedById = new Map(archivedElements.map(e => [e.id, e]));
+        
+        // Build children map for archived elements only
+        const archivedChildrenByParent = new Map();
+        for (const e of archivedElements) {
+          const parentId = e.parent_element_id ?? null;
+          if (!archivedChildrenByParent.has(parentId)) {
+            archivedChildrenByParent.set(parentId, []);
+          }
+          archivedChildrenByParent.get(parentId).push(e);
+        }
+
+        // Find path from root to first active parent (or to root if all parents archived)
+        const findPathToActiveParent = (elementId) => {
+          // First, find the first active parent in the chain
+          let currentId = elementId;
+          const visited = new Set();
+          let firstActiveParent = null;
+          
+          while (currentId !== null && currentId !== undefined) {
+            if (visited.has(currentId)) break; // Prevent cycles
+            visited.add(currentId);
+            
+            const element = allById.get(currentId);
+            if (!element) break;
+            
+            // Check if parent exists and is active
+            if (element.parent_element_id) {
+              const parent = allById.get(element.parent_element_id);
+              if (parent && !Boolean(parent.archived)) {
+                firstActiveParent = parent;
+                break;
+              }
+            }
+            
+            // Move to parent
+            currentId = element.parent_element_id;
+          }
+          
+          // If no active parent found, return empty path (root level)
+          if (!firstActiveParent) {
+            return [];
+          }
+          
+          // Build path from root to first active parent (only active elements)
+          const path = [];
+          let pathId = firstActiveParent.id;
+          const pathVisited = new Set();
+          
+          // Traverse from first active parent up to root
+          while (pathId !== null && pathId !== undefined) {
+            if (pathVisited.has(pathId)) break;
+            pathVisited.add(pathId);
+            
+            const pathElement = allById.get(pathId);
+            if (!pathElement) break;
+            
+            // Only add active (non-archived) elements to the path
+            if (!Boolean(pathElement.archived)) {
+              // Add to beginning to build path from root to first active parent
+              path.unshift(pathElement);
+            }
+            
+            pathId = pathElement.parent_element_id;
+          }
+          
+          return path;
+        };
+
+        // Group archived elements by their path
+        const groupsByPath = new Map();
+        
+        for (const element of archivedElements) {
+          const path = findPathToActiveParent(element.id);
+          // Create a unique key for the path
+          const pathKey = path.map(p => p.id).join('|');
+          
+          if (!groupsByPath.has(pathKey)) {
+            groupsByPath.set(pathKey, {
+              path: path,
+              pathKey: pathKey,
+              elements: []
+            });
+          }
+          groupsByPath.get(pathKey).elements.push(element);
+        }
+
+        // Sort groups by path depth and path element order
+        const sortedGroups = Array.from(groupsByPath.values()).sort((a, b) => {
+          // Shorter paths first
+          if (a.path.length !== b.path.length) {
+            return a.path.length - b.path.length;
+          }
+          // Then by first path element order
+          if (a.path.length > 0 && b.path.length > 0) {
+            const orderA = Number(a.path[0].order) || 0;
+            const orderB = Number(b.path[0].order) || 0;
+            if (orderA !== orderB) {
+              return orderA - orderB;
+            }
+          }
+          return 0;
+        });
+
+        // Process each group
+        for (const group of sortedGroups) {
+          const isGroupCollapsed = this.collapsedGroups[group.pathKey];
+          
+          // Add visual indicator for the group
+          result.push({
+            id: `group-${group.pathKey}`,
+            isGroupIndicator: true,
+            groupPath: group.path,
+            groupPathKey: group.pathKey,
+            level: 0
+          });
+
+          if (!isGroupCollapsed) {
+            // Build a set of element IDs in this group for fast lookup
+            const groupElementIds = new Set(group.elements.map(e => e.id));
+            
+            // Calculate relative levels within the group (preserve internal hierarchy)
+            // Root elements in group have level 0, their children have level 1, etc.
+            const calculateRelativeLevel = (elementId) => {
+              const element = archivedById.get(elementId);
+              if (!element) return 0;
+              
+              // If no parent, it's a root element in the group (level 0)
+              if (!element.parent_element_id) {
+                return 0;
+              }
+              
+              // Check if parent is in the same group
+              if (groupElementIds.has(element.parent_element_id)) {
+                // Parent is in the group, so this is a child - calculate parent's level + 1
+                return calculateRelativeLevel(element.parent_element_id) + 1;
+              }
+              
+              // Parent is not in the group (it's active or in another group), so this is a root in this group
+              return 0;
+            };
+
+            // Find root elements in the group (elements whose parent is not in the group)
+            const rootElementsInGroup = group.elements.filter(element => {
+              if (!element.parent_element_id) {
+                return true; // No parent, it's a root
+              }
+              // Parent is not in the group
+              return !groupElementIds.has(element.parent_element_id);
+            });
+
+            // Sort root elements by order
+            rootElementsInGroup.sort((a, b) => {
+              const orderA = Number(a.order) || 0;
+              const orderB = Number(b.order) || 0;
+              return orderA - orderB;
+            });
+
+            // Add elements from the group with their relative levels
+            const addGroupSubtree = (element, relativeLevel) => {
+              if (processed.has(element.id)) {
+                return;
+              }
+
+              result.push({
+                ...element,
+                level: relativeLevel,
+                groupPathKey: group.pathKey
+              });
+              processed.add(element.id);
+
+              if (this.collapsedElements[element.id]) {
+                return;
+              }
+
+              // Add children that are in the same group
+              const children = (archivedChildrenByParent.get(element.id) || [])
+                .filter(child => groupElementIds.has(child.id))
+                .slice()
+                .sort((a, b) => {
+                  const orderA = Number(a.order) || 0;
+                  const orderB = Number(b.order) || 0;
+                  return orderA - orderB;
+                });
+
+              for (const child of children) {
+                addGroupSubtree(child, relativeLevel + 1);
+              }
+            };
+
+            // Process root elements in the group
+            for (const rootElement of rootElementsInGroup) {
+              addGroupSubtree(rootElement, 0);
+            }
+          }
+        }
+
+        return result;
+      }
+
+      // Original logic for 'active' and 'both' modes
       // Shared comparator for any "siblings list"
       // In 'both' mode: active first, then archived; always then by order.
       const compareWithinGroup = (a, b) => {
@@ -422,6 +681,10 @@ export default {
   methods: {
     t(key) {
       return locales[this.lang][key] || key;
+    },
+    truncateTitle(title) {
+      if (!title) return '';
+      return title.length > 20 ? title.substring(0, 20) + '...' : title;
     },
     /**
      * Show notification to user
@@ -1486,6 +1749,14 @@ export default {
      * Toggle collapse state for an element
      * @param {number} elementId - The element ID to toggle
      */
+    toggleGroupCollapse(groupPathKey) {
+      // Toggle group collapse state (local only, no database persistence needed)
+      this.collapsedGroups = {
+        ...this.collapsedGroups,
+        [groupPathKey]: !this.collapsedGroups[groupPathKey]
+      };
+    },
+
     async toggleCollapse(elementId) {
       // Get current collapsed state
       const newCollapsedState = !this.collapsedElements[elementId];

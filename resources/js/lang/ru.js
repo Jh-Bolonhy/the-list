@@ -52,5 +52,7 @@ export default {
   defaultHeader: 'Ваш Список',
   clickToEdit: 'Редактировать',
   createPath: 'Создание в:',
-  cannotNestParent: 'Вы пытаетесь вложить сундук в шкатулку'
+  cannotNestParent: 'Вы пытаетесь вложить сундук в шкатулку',
+  liftedFrom: 'Поднято из',
+  root: 'Корень'
 };
