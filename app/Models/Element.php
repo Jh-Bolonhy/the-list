@@ -89,5 +89,39 @@ class Element extends Model
             }
         }
     }
+
+    /**
+     * Restore archived parents in the chain up to the first non-archived parent or root
+     * Only restores the parent chain, not other children of those parents
+     */
+    public function restoreParentChain()
+    {
+        $currentId = $this->parent_element_id;
+        $restoredParents = [];
+
+        // Traverse up the parent chain
+        while ($currentId !== null) {
+            $parent = Element::where('user_id', $this->user_id)
+                ->find($currentId);
+            
+            if (!$parent) {
+                break; // Parent not found or doesn't belong to user
+            }
+
+            // If parent is archived, restore it
+            if ($parent->archived) {
+                $parent->update(['archived' => false]);
+                $restoredParents[] = $parent->id;
+            } else {
+                // Found first non-archived parent, stop here
+                break;
+            }
+
+            // Move to next parent
+            $currentId = $parent->parent_element_id;
+        }
+
+        return $restoredParents;
+    }
 }
 

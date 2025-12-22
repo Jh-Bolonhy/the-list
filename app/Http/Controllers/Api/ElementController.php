@@ -175,6 +175,7 @@ class ElementController extends Controller
 
     /**
      * Restore an archived element and all its descendants.
+     * Also restores archived parents in the chain (but not other children of those parents).
      */
     public function restore(string $id): JsonResponse
     {
@@ -184,8 +185,40 @@ class ElementController extends Controller
             return response()->json(['message' => 'Element is not archived'], 400);
         }
 
+        // First, restore archived parents in the chain (only the chain, not other children)
+        $restoredParentIds = $element->restoreParentChain();
+
+        // Then restore this element and all its descendants
         $element->restoreWithDescendants();
-        return response()->json(['message' => 'Element and all descendants restored successfully'], 200);
+
+        // Get updated data for restored parents
+        $restoredParents = [];
+        if (!empty($restoredParentIds)) {
+            $restoredParents = Element::where('user_id', Auth::id())
+                ->whereIn('id', $restoredParentIds)
+                ->get()
+                ->map(function ($el) {
+                    return [
+                        'id' => $el->id,
+                        'archived' => $el->archived,
+                        'title' => $el->title,
+                        'parent_element_id' => $el->parent_element_id,
+                        'order' => $el->order,
+                        'completed' => $el->completed,
+                        'description' => $el->description,
+                        'collapsed' => $el->collapsed,
+                        'created_at' => $el->created_at,
+                        'updated_at' => $el->updated_at
+                    ];
+                })
+                ->toArray();
+        }
+
+        return response()->json([
+            'message' => 'Element and all descendants restored successfully',
+            'restored_parent_ids' => $restoredParentIds,
+            'restored_parents' => $restoredParents
+        ], 200);
     }
 
     /**

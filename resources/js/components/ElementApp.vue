@@ -1598,7 +1598,16 @@ export default {
         });
         // Update with server response (in case server made adjustments)
         if (response.data) {
-          this.elements[index] = response.data;
+          // Normalize types from backend
+          this.elements[index] = {
+            ...response.data,
+            id: Number(response.data.id),
+            parent_element_id: response.data.parent_element_id === null || response.data.parent_element_id === undefined ? null : Number(response.data.parent_element_id),
+            order: response.data.order === null || response.data.order === undefined ? response.data.order : Number(response.data.order),
+            archived: Boolean(response.data.archived),
+            completed: Boolean(response.data.completed),
+            collapsed: Boolean(response.data.collapsed),
+          };
         }
       } catch (error) {
         // Rollback on error
@@ -1619,7 +1628,16 @@ export default {
         });
         const index = this.elements.findIndex(e => e.id === this.editingElement.id);
         if (index !== -1) {
-          this.elements[index] = response.data;
+          // Normalize types from backend
+          this.elements[index] = {
+            ...response.data,
+            id: Number(response.data.id),
+            parent_element_id: response.data.parent_element_id === null || response.data.parent_element_id === undefined ? null : Number(response.data.parent_element_id),
+            order: response.data.order === null || response.data.order === undefined ? response.data.order : Number(response.data.order),
+            archived: Boolean(response.data.archived),
+            completed: Boolean(response.data.completed),
+            collapsed: Boolean(response.data.collapsed),
+          };
         }
         this.editingElement = null;
       } catch (error) {
@@ -1684,7 +1702,41 @@ export default {
 
     async restoreElement(id) {
       try {
-        await axios.post(`/api/elements/${id}/restore`);
+        const response = await axios.post(`/api/elements/${id}/restore`);
+
+        // Update local state for restored parents (if any)
+        if (response.data && response.data.restored_parents && Array.isArray(response.data.restored_parents)) {
+          response.data.restored_parents.forEach(parentData => {
+            const parentIndex = this.elements.findIndex(e => e.id === parentData.id);
+            if (parentIndex !== -1) {
+              // Update parent with full data from server
+              Object.assign(this.elements[parentIndex], {
+                ...parentData,
+                id: Number(parentData.id),
+                parent_element_id: parentData.parent_element_id === null || parentData.parent_element_id === undefined
+                  ? null
+                  : Number(parentData.parent_element_id),
+                order: parentData.order === null || parentData.order === undefined ? parentData.order : Number(parentData.order),
+                archived: Boolean(parentData.archived),
+                completed: Boolean(parentData.completed),
+                collapsed: Boolean(parentData.collapsed)
+              });
+            } else {
+              // Parent not in local state, add it
+              this.elements.push({
+                ...parentData,
+                id: Number(parentData.id),
+                parent_element_id: parentData.parent_element_id === null || parentData.parent_element_id === undefined
+                  ? null
+                  : Number(parentData.parent_element_id),
+                order: parentData.order === null || parentData.order === undefined ? parentData.order : Number(parentData.order),
+                archived: Boolean(parentData.archived),
+                completed: Boolean(parentData.completed),
+                collapsed: Boolean(parentData.collapsed)
+              });
+            }
+          });
+        }
 
         // Update local state for element and all its descendants
         this.updateElementAndDescendants(id, { archived: false });
@@ -2010,16 +2062,27 @@ export default {
         // Update local state with all affected elements from server response
         // This ensures DOM updates happen in a single action
         if (response.data.elements && Array.isArray(response.data.elements)) {
+          // Normalize types from backend (same as loadElements)
+          const normalizedElements = response.data.elements.map((e) => ({
+            ...e,
+            id: Number(e.id),
+            parent_element_id: e.parent_element_id === null || e.parent_element_id === undefined ? null : Number(e.parent_element_id),
+            order: e.order === null || e.order === undefined ? e.order : Number(e.order),
+            archived: Boolean(e.archived),
+            completed: Boolean(e.completed),
+            collapsed: Boolean(e.collapsed),
+          }));
+
           // Create a map of updated elements for quick lookup
           const updatedElementsMap = new Map(
-            response.data.elements.map(e => [e.id, e])
+            normalizedElements.map(e => [e.id, e])
           );
 
           // Update affected elements in place
           for (let i = 0; i < this.elements.length; i++) {
             const element = this.elements[i];
             if (updatedElementsMap.has(element.id)) {
-              // Update existing element with server data
+              // Update existing element with normalized server data
               Object.assign(this.elements[i], updatedElementsMap.get(element.id));
             }
           }
