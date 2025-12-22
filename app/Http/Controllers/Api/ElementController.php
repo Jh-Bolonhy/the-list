@@ -118,6 +118,11 @@ class ElementController extends Controller
 
         $element = Element::where('user_id', Auth::id())->findOrFail($id);
 
+        // Prevent archived elements from being moved
+        if ($request->has('parent_element_id') && $element->archived) {
+            return response()->json(['error' => 'Archived elements cannot be moved'], 400);
+        }
+
         // Prevent element from being its own parent
         if ($request->has('parent_element_id') && $request->input('parent_element_id') == $id) {
             return response()->json(['error' => 'Element cannot be its own parent'], 400);
@@ -224,6 +229,13 @@ class ElementController extends Controller
             return response()->json(['error' => 'Some elements not found or do not belong to you'], 400);
         }
 
+        // Prevent archived elements from being reordered
+        foreach ($elements as $element) {
+            if ($element->archived) {
+                return response()->json(['error' => 'Archived elements cannot be reordered'], 400);
+            }
+        }
+
         // Verify all elements have the same parent_element_id as requested
         foreach ($elements as $element) {
             if ($element->parent_element_id != $parentId) {
@@ -282,6 +294,11 @@ class ElementController extends Controller
 
         // Get the element to move
         $element = Element::where('user_id', $userId)->findOrFail($elementId);
+
+        // Prevent archived elements from being moved
+        if ($element->archived) {
+            return response()->json(['error' => 'Archived elements cannot be moved'], 400);
+        }
 
         // Prevent element from being its own parent
         if ($newParentId == $elementId) {

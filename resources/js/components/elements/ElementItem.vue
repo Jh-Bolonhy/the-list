@@ -1,6 +1,6 @@
 <template>
     <div
-    :draggable="editingElement?.id !== element.id"
+    :draggable="editingElement?.id !== element.id && !element.archived"
     :data-element-id="element.id"
     @dragstart="$emit('drag-start', $event, index)"
     @dragover.prevent="$emit('drag-over', $event, index)"
@@ -14,7 +14,7 @@
       'flex items-center p-4 rounded-lg transition-all duration-[400ms] border border-gray-300',
       draggingIndex === index
         ? 'shadow-2xl z-50 scale-[0.98] cursor-grabbing'
-        : 'cursor-grab',
+        : element.archived ? 'cursor-default' : 'cursor-grab',
       element.archived
         ? 'bg-gray-200 hover:bg-gray-300'
         : 'bg-gray-50 hover:bg-gray-100',
