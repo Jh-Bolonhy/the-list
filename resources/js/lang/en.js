@@ -56,5 +56,6 @@ export default {
   liftedFrom: 'Lifted from',
   root: 'Root',
   copy: 'Copy',
+  copyTitlesOnly: 'Copy titles only',
   copyWithChildren: 'Copy with all children'
 }; 

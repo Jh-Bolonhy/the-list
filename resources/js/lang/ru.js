@@ -56,5 +56,6 @@ export default {
   liftedFrom: 'Поднято из',
   root: 'Корень',
   copy: 'Копировать',
+  copyTitlesOnly: 'Копировать только заголовки',
   copyWithChildren: 'Копировать со всеми дочерними элементами'
 };

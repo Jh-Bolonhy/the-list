@@ -130,6 +130,22 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2" />
               </svg>
             </button>
+            <!-- Copy titles only button (only for elements with children) -->
+            <button
+              v-if="hasChildren"
+              class="title-action-btn copy-button"
+              :class="{ 'copy-button-copied': isCopiedTitlesOnly }"
+              @click.stop="copyTitlesOnly"
+              :title="t('copyTitlesOnly') || 'Copy titles only'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <!-- Long line on top -->
+                <line x1="4" y1="6" x2="20" y2="6" stroke-linecap="round" stroke-width="2" />
+                <!-- Two shorter lines below, aligned to the right -->
+                <line x1="8" y1="12" x2="20" y2="12" stroke-linecap="round" stroke-width="2" />
+                <line x1="8" y1="18" x2="20" y2="18" stroke-linecap="round" stroke-width="2" />
+              </svg>
+            </button>
             <!-- Copy with children button (only for elements with children) -->
             <button
               v-if="hasChildren"
@@ -331,8 +347,10 @@ export default {
       descriptionHeight: null, // Store computed height for animation
       buttonTransformY: 0, // Store button transform for animation
       isCopied: false, // Track if content was successfully copied
+      isCopiedTitlesOnly: false, // Track if titles only were successfully copied
       isCopiedWithChildren: false, // Track if content with children was successfully copied
       copyFeedbackTimeoutId: null, // Timeout id for copy feedback reset
+      copyTitlesOnlyFeedbackTimeoutId: null, // Timeout id for copy titles only feedback reset
       copyWithChildrenFeedbackTimeoutId: null // Timeout id for copy with children feedback reset
     };
   },
@@ -641,11 +659,11 @@ export default {
         const title = this.element.title || '';
         const description = this.element.description || '';
         const indentedDescription = description
-          ? '    ' + description.replace(/\n/g, '\n    ')
+          ? '     ' + description.replace(/\n/g, '\n     ') // Description indentation: 5 spaces relative to title
           : '';
         const textToCopy = indentedDescription
-          ? `${title}\n${indentedDescription}`
-          : title;
+          ? `> ${title}\n${indentedDescription}`
+          : `> ${title}`;
         
         // Use Clipboard API to copy and verify success
         await navigator.clipboard.writeText(textToCopy);
@@ -697,11 +715,55 @@ export default {
       const title = element.title || '';
       const description = element.description || '';
       const indentedDescription = description
-        ? indent + '    ' + description.replace(/\n/g, '\n' + indent + '    ') // Description indentation: 4 spaces relative to title
+        ? indent + '     ' + description.replace(/\n/g, '\n' + indent + '     ') // Description indentation: 5 spaces relative to title
         : '';
       return indentedDescription
-        ? `${indent}${title}\n${indentedDescription}`
-        : `${indent}${title}`;
+        ? `${indent}> ${title}\n${indentedDescription}`
+        : `${indent}> ${title}`;
+    },
+    /**
+     * Format element title only with indentation based on level
+     * @param {Object} element - The element
+     * @param {number} level - Nesting level
+     * @returns {string} - Formatted title
+     */
+    formatElementTitle(element, level) {
+      const indent = '  '.repeat(level); // Structural indentation: 2 spaces per level
+      const title = element.title || '';
+      return `${indent}> ${title}`;
+    },
+    async copyTitlesOnly() {
+      try {
+        // Get all descendants
+        const descendants = this.getAllDescendants(this.element.id);
+        
+        // Format main element title
+        let textToCopy = this.formatElementTitle(this.element, 0);
+        
+        // Format all descendant titles
+        for (const { element, level } of descendants) {
+          textToCopy += '\n' + this.formatElementTitle(element, level);
+        }
+        
+        // Use Clipboard API to copy and verify success
+        await navigator.clipboard.writeText(textToCopy);
+        
+        // Only show visual feedback if copy was successful
+        if (this.copyTitlesOnlyFeedbackTimeoutId) {
+          clearTimeout(this.copyTitlesOnlyFeedbackTimeoutId);
+          this.copyTitlesOnlyFeedbackTimeoutId = null;
+        }
+        this.isCopiedTitlesOnly = true;
+        
+        // Remove visual feedback after animation duration (1.25s)
+        this.copyTitlesOnlyFeedbackTimeoutId = setTimeout(() => {
+          this.isCopiedTitlesOnly = false;
+          this.copyTitlesOnlyFeedbackTimeoutId = null;
+        }, 1250);
+      } catch (err) {
+        console.error('Failed to copy titles only', err);
+        // Don't set isCopiedTitlesOnly to true if copy failed
+      }
     },
     async copyElementWithChildren() {
       try {
@@ -713,7 +775,7 @@ export default {
         
         // Format all descendants
         for (const { element, level } of descendants) {
-          textToCopy += '\n\n' + this.formatElementContent(element, level);
+          textToCopy += '\n' + this.formatElementContent(element, level);
         }
         
         // Use Clipboard API to copy and verify success
