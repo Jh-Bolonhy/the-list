@@ -54,5 +54,7 @@ export default {
   createPath: 'Создание в:',
   cannotNestParent: 'Вы пытаетесь вложить сундук в шкатулку',
   liftedFrom: 'Поднято из',
-  root: 'Корень'
+  root: 'Корень',
+  copy: 'Копировать',
+  copyWithChildren: 'Копировать со всеми дочерними элементами'
 };

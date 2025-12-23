@@ -189,6 +189,7 @@
                 :has-children="hasChildren(element.id)"
                 :is-collapsed="collapsedElements[element.id]"
                 :locked-element-id="lockedElementId"
+                :all-elements="elements"
               />
             </template>
           </transition-group>

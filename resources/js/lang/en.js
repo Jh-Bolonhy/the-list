@@ -54,5 +54,7 @@ export default {
   createPath: 'Creating under:',
   cannotNestParent: 'You are trying to nest a chest into a box',
   liftedFrom: 'Lifted from',
-  root: 'Root'
+  root: 'Root',
+  copy: 'Copy',
+  copyWithChildren: 'Copy with all children'
 }; 

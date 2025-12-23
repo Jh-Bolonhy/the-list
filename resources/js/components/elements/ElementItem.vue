@@ -130,6 +130,20 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2" />
               </svg>
             </button>
+            <!-- Copy with children button (only for elements with children) -->
+            <button
+              v-if="hasChildren"
+              class="title-action-btn copy-button"
+              :class="{ 'copy-button-copied': isCopiedWithChildren }"
+              @click.stop="copyElementWithChildren"
+              :title="t('copyWithChildren') || 'Copy with children'"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 4h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              </svg>
+            </button>
           </div>
         </div>
         <div v-if="element.description" class="relative mt-1 description-wrapper">
@@ -282,6 +296,10 @@ export default {
     isCollapsed: {
       type: Boolean,
       default: false
+    },
+    allElements: {
+      type: Array,
+      default: () => []
     }
   },
   emits: [
@@ -313,7 +331,9 @@ export default {
       descriptionHeight: null, // Store computed height for animation
       buttonTransformY: 0, // Store button transform for animation
       isCopied: false, // Track if content was successfully copied
-      copyFeedbackTimeoutId: null // Timeout id for copy feedback reset
+      isCopiedWithChildren: false, // Track if content with children was successfully copied
+      copyFeedbackTimeoutId: null, // Timeout id for copy feedback reset
+      copyWithChildrenFeedbackTimeoutId: null // Timeout id for copy with children feedback reset
     };
   },
   watch: {
@@ -621,10 +641,10 @@ export default {
         const title = this.element.title || '';
         const description = this.element.description || '';
         const indentedDescription = description
-          ? '  ' + description.replace(/\n/g, '\n  ')
+          ? '    ' + description.replace(/\n/g, '\n    ')
           : '';
         const textToCopy = indentedDescription
-          ? `${title}\n\n${indentedDescription}`
+          ? `${title}\n${indentedDescription}`
           : title;
         
         // Use Clipboard API to copy and verify success
@@ -645,6 +665,75 @@ export default {
       } catch (err) {
         console.error('Failed to copy element content', err);
         // Don't set isCopied to true if copy failed
+      }
+    },
+    /**
+     * Get all descendants of an element recursively
+     * @param {number} elementId - The element ID
+     * @param {number} level - Current nesting level (for indentation)
+     * @returns {Array} - Array of elements with their nesting level
+     */
+    getAllDescendants(elementId, level = 0) {
+      const descendants = [];
+      const children = this.allElements.filter(e => Number(e.parent_element_id) === Number(elementId));
+      
+      for (const child of children) {
+        descendants.push({ element: child, level: level + 1 });
+        // Recursively get descendants of this child
+        const childDescendants = this.getAllDescendants(child.id, level + 1);
+        descendants.push(...childDescendants);
+      }
+      
+      return descendants;
+    },
+    /**
+     * Format element content with indentation based on level
+     * @param {Object} element - The element
+     * @param {number} level - Nesting level
+     * @returns {string} - Formatted text
+     */
+    formatElementContent(element, level) {
+      const indent = '  '.repeat(level); // Structural indentation: 2 spaces per level
+      const title = element.title || '';
+      const description = element.description || '';
+      const indentedDescription = description
+        ? indent + '    ' + description.replace(/\n/g, '\n' + indent + '    ') // Description indentation: 4 spaces relative to title
+        : '';
+      return indentedDescription
+        ? `${indent}${title}\n${indentedDescription}`
+        : `${indent}${title}`;
+    },
+    async copyElementWithChildren() {
+      try {
+        // Get all descendants
+        const descendants = this.getAllDescendants(this.element.id);
+        
+        // Format main element
+        let textToCopy = this.formatElementContent(this.element, 0);
+        
+        // Format all descendants
+        for (const { element, level } of descendants) {
+          textToCopy += '\n\n' + this.formatElementContent(element, level);
+        }
+        
+        // Use Clipboard API to copy and verify success
+        await navigator.clipboard.writeText(textToCopy);
+        
+        // Only show visual feedback if copy was successful
+        if (this.copyWithChildrenFeedbackTimeoutId) {
+          clearTimeout(this.copyWithChildrenFeedbackTimeoutId);
+          this.copyWithChildrenFeedbackTimeoutId = null;
+        }
+        this.isCopiedWithChildren = true;
+        
+        // Remove visual feedback after animation duration (1.25s)
+        this.copyWithChildrenFeedbackTimeoutId = setTimeout(() => {
+          this.isCopiedWithChildren = false;
+          this.copyWithChildrenFeedbackTimeoutId = null;
+        }, 1250);
+      } catch (err) {
+        console.error('Failed to copy element content with children', err);
+        // Don't set isCopiedWithChildren to true if copy failed
       }
     }
   },
