@@ -59,5 +59,6 @@ export default {
   copyTitlesOnly: 'Копировать только заголовки',
   copyWithChildren: 'Копировать со всеми дочерними элементами',
   completed: 'Завершено',
-  notCompleted: 'Не завершено'
+  notCompleted: 'Не завершено',
+  archived: 'арх'
 };

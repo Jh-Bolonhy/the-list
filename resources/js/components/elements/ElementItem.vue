@@ -738,6 +738,9 @@ export default {
       const title = element.title || '';
       const description = element.description || '';
       
+      // Add archive status if element is archived
+      const archiveStatus = element.archived ? ` (${this.t('archived')}) ` : ' ';
+      
       // Add completion status to title
       const completionStatus = element.completed 
         ? `     [${this.t('completed')}]`
@@ -748,8 +751,8 @@ export default {
         ? indent + '     ' + description.replace(/\n/g, '\n' + indent + '     ') // Description indentation: 5 spaces relative to title
         : '';
       return indentedDescription
-        ? `${indent}> ${titleWithStatus}\n${indentedDescription}`
-        : `${indent}> ${titleWithStatus}`;
+        ? `${indent}>${archiveStatus}${titleWithStatus}\n${indentedDescription}`
+        : `${indent}>${archiveStatus}${titleWithStatus}`;
     },
     /**
      * Format element title only with indentation based on level
@@ -761,13 +764,16 @@ export default {
       const indent = '  '.repeat(level); // Structural indentation: 2 spaces per level
       const title = element.title || '';
       
+      // Add archive status if element is archived
+      const archiveStatus = element.archived ? ` (${this.t('archived')}) ` : ' ';
+      
       // Add completion status to title
       const completionStatus = element.completed 
         ? `     [${this.t('completed')}]`
         : `     [${this.t('notCompleted')}]`;
       const titleWithStatus = `${title}${completionStatus}`;
       
-      return `${indent}> ${titleWithStatus}`;
+      return `${indent}>${archiveStatus}${titleWithStatus}`;
     },
     async copyTitlesOnly() {
       try {

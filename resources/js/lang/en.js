@@ -59,5 +59,6 @@ export default {
   copyTitlesOnly: 'Copy titles only',
   copyWithChildren: 'Copy with all children',
   completed: 'Completed',
-  notCompleted: 'Not completed'
+  notCompleted: 'Not completed',
+  archived: 'arch'
 }; 
