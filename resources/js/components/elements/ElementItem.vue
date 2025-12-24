@@ -125,9 +125,11 @@
               @click.stop="copyElementContent"
               :title="t('copy') || 'Copy'"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2" />
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 1024 1024">
+                <g transform="rotate(-90 512 512)">
+                  <path d="M768 832a128 128 0 0 1-128 128H192A128 128 0 0 1 64 832V384a128 128 0 0 1 128-128v64a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64h64z"/>
+                  <path d="M384 128a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64V192a64 64 0 0 0-64-64H384zm0-64h448a128 128 0 0 1 128 128v448a128 128 0 0 1-128 128H384a128 128 0 0 1-128-128V192A128 128 0 0 1 384 64z"/>
+                </g>
               </svg>
             </button>
             <!-- Copy titles only button (only for elements with children) -->
@@ -387,14 +389,14 @@ export default {
       // Calculate padding based on number of buttons
       // Each button is 2rem wide, gap between buttons is 0.25rem
       let buttonCount = 1; // Copy button is always present
-      
+
       if (this.hasChildren) {
         buttonCount += 2; // Copy titles + Copy with children
         if (!this.element.archived) {
           buttonCount += 1; // Lock button
         }
       }
-      
+
       // Total width: buttons + gaps
       // For 1 button: 2rem
       // For 2 buttons: 2rem + 0.25rem + 2rem = 4.25rem
@@ -403,7 +405,7 @@ export default {
       const buttonWidth = 2; // rem
       const gapWidth = 0.25; // rem
       const totalWidth = buttonCount * buttonWidth + (buttonCount - 1) * gapWidth;
-      
+
       return `${totalWidth}rem`;
     },
     combinedStyles() {
@@ -691,17 +693,17 @@ export default {
         const textToCopy = indentedDescription
           ? `> ${title}\n${indentedDescription}`
           : `> ${title}`;
-        
+
         // Use Clipboard API to copy and verify success
         await navigator.clipboard.writeText(textToCopy);
-        
+
         // Only show visual feedback if copy was successful
         if (this.copyFeedbackTimeoutId) {
           clearTimeout(this.copyFeedbackTimeoutId);
           this.copyFeedbackTimeoutId = null;
         }
         this.isCopied = true;
-        
+
         // Remove visual feedback after animation duration (1.25s)
         this.copyFeedbackTimeoutId = setTimeout(() => {
           this.isCopied = false;
@@ -721,7 +723,7 @@ export default {
     getAllDescendants(elementId, level = 0) {
       const descendants = [];
       let children = this.allElements.filter(e => Number(e.parent_element_id) === Number(elementId));
-      
+
       // Filter children based on viewMode
       if (this.viewMode === 'active') {
         children = children.filter(e => !Boolean(e.archived));
@@ -729,14 +731,14 @@ export default {
         children = children.filter(e => Boolean(e.archived));
       }
       // 'both' mode - no filtering needed
-      
+
       for (const child of children) {
         descendants.push({ element: child, level: level + 1 });
         // Recursively get descendants of this child
         const childDescendants = this.getAllDescendants(child.id, level + 1);
         descendants.push(...childDescendants);
       }
-      
+
       return descendants;
     },
     /**
@@ -749,16 +751,16 @@ export default {
       const indent = '  '.repeat(level); // Structural indentation: 2 spaces per level
       const title = element.title || '';
       const description = element.description || '';
-      
+
       // Add archive status if element is archived
       const archiveStatus = element.archived ? ` (${this.t('archived')}) ` : ' ';
-      
+
       // Add completion status to title
-      const completionStatus = element.completed 
+      const completionStatus = element.completed
         ? `     [${this.t('completed')}]`
         : `     [${this.t('notCompleted')}]`;
       const titleWithStatus = `${title}${completionStatus}`;
-      
+
       const indentedDescription = description
         ? indent + '     ' + description.replace(/\n/g, '\n' + indent + '     ') // Description indentation: 5 spaces relative to title
         : '';
@@ -775,41 +777,41 @@ export default {
     formatElementTitle(element, level) {
       const indent = '  '.repeat(level); // Structural indentation: 2 spaces per level
       const title = element.title || '';
-      
+
       // Add archive status if element is archived
       const archiveStatus = element.archived ? ` (${this.t('archived')}) ` : ' ';
-      
+
       // Add completion status to title
-      const completionStatus = element.completed 
+      const completionStatus = element.completed
         ? `     [${this.t('completed')}]`
         : `     [${this.t('notCompleted')}]`;
       const titleWithStatus = `${title}${completionStatus}`;
-      
+
       return `${indent}>${archiveStatus}${titleWithStatus}`;
     },
     async copyTitlesOnly() {
       try {
         // Get all descendants
         const descendants = this.getAllDescendants(this.element.id);
-        
+
         // Format main element title
         let textToCopy = this.formatElementTitle(this.element, 0);
-        
+
         // Format all descendant titles
         for (const { element, level } of descendants) {
           textToCopy += '\n' + this.formatElementTitle(element, level);
         }
-        
+
         // Use Clipboard API to copy and verify success
         await navigator.clipboard.writeText(textToCopy);
-        
+
         // Only show visual feedback if copy was successful
         if (this.copyTitlesOnlyFeedbackTimeoutId) {
           clearTimeout(this.copyTitlesOnlyFeedbackTimeoutId);
           this.copyTitlesOnlyFeedbackTimeoutId = null;
         }
         this.isCopiedTitlesOnly = true;
-        
+
         // Remove visual feedback after animation duration (1.25s)
         this.copyTitlesOnlyFeedbackTimeoutId = setTimeout(() => {
           this.isCopiedTitlesOnly = false;
@@ -824,25 +826,25 @@ export default {
       try {
         // Get all descendants
         const descendants = this.getAllDescendants(this.element.id);
-        
+
         // Format main element
         let textToCopy = this.formatElementContent(this.element, 0);
-        
+
         // Format all descendants
         for (const { element, level } of descendants) {
           textToCopy += '\n' + this.formatElementContent(element, level);
         }
-        
+
         // Use Clipboard API to copy and verify success
         await navigator.clipboard.writeText(textToCopy);
-        
+
         // Only show visual feedback if copy was successful
         if (this.copyWithChildrenFeedbackTimeoutId) {
           clearTimeout(this.copyWithChildrenFeedbackTimeoutId);
           this.copyWithChildrenFeedbackTimeoutId = null;
         }
         this.isCopiedWithChildren = true;
-        
+
         // Remove visual feedback after animation duration (1.25s)
         this.copyWithChildrenFeedbackTimeoutId = setTimeout(() => {
           this.isCopiedWithChildren = false;
