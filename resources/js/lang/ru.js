@@ -60,5 +60,4 @@ export default {
   copyWithChildren: 'Копировать со всеми дочерними элементами',
   completed: 'Завершено',
   notCompleted: 'Не завершено',
-  archived: 'арх'
 };

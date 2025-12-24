@@ -60,5 +60,4 @@ export default {
   copyWithChildren: 'Copy with all children',
   completed: 'Completed',
   notCompleted: 'Not completed',
-  archived: 'arch'
-}; 
+};
