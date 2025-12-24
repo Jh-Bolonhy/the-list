@@ -57,5 +57,7 @@ export default {
   root: 'Root',
   copy: 'Copy',
   copyTitlesOnly: 'Copy titles only',
-  copyWithChildren: 'Copy with all children'
+  copyWithChildren: 'Copy with all children',
+  completed: 'Completed',
+  notCompleted: 'Not completed'
 }; 

@@ -737,12 +737,19 @@ export default {
       const indent = '  '.repeat(level); // Structural indentation: 2 spaces per level
       const title = element.title || '';
       const description = element.description || '';
+      
+      // Add completion status to title
+      const completionStatus = element.completed 
+        ? `     [${this.t('completed')}]`
+        : `     [${this.t('notCompleted')}]`;
+      const titleWithStatus = `${title}${completionStatus}`;
+      
       const indentedDescription = description
         ? indent + '     ' + description.replace(/\n/g, '\n' + indent + '     ') // Description indentation: 5 spaces relative to title
         : '';
       return indentedDescription
-        ? `${indent}> ${title}\n${indentedDescription}`
-        : `${indent}> ${title}`;
+        ? `${indent}> ${titleWithStatus}\n${indentedDescription}`
+        : `${indent}> ${titleWithStatus}`;
     },
     /**
      * Format element title only with indentation based on level
@@ -753,7 +760,14 @@ export default {
     formatElementTitle(element, level) {
       const indent = '  '.repeat(level); // Structural indentation: 2 spaces per level
       const title = element.title || '';
-      return `${indent}> ${title}`;
+      
+      // Add completion status to title
+      const completionStatus = element.completed 
+        ? `     [${this.t('completed')}]`
+        : `     [${this.t('notCompleted')}]`;
+      const titleWithStatus = `${title}${completionStatus}`;
+      
+      return `${indent}> ${titleWithStatus}`;
     },
     async copyTitlesOnly() {
       try {

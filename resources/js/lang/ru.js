@@ -57,5 +57,7 @@ export default {
   root: 'Корень',
   copy: 'Копировать',
   copyTitlesOnly: 'Копировать только заголовки',
-  copyWithChildren: 'Копировать со всеми дочерними элементами'
+  copyWithChildren: 'Копировать со всеми дочерними элементами',
+  completed: 'Завершено',
+  notCompleted: 'Не завершено'
 };
