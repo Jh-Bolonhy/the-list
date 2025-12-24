@@ -156,10 +156,12 @@
               @click.stop="copyElementWithChildren"
               :title="t('copyWithChildren') || 'Copy with children'"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-2" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 4h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 1024 1024">
+                <g transform="rotate(-90 512 512)">
+                  <path d="M717 864a128 128 0 0 1-128 128H141A128 128 0 0 1 13 864V416a128 128 0 0 1 128-128v64a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64h64z"/>
+                  <path d="M832 749a128 128 0 0 1-128 128H256A128 128 0 0 1 128 749V301a128 128 0 0 1 128-128v64a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64h64z"/>
+                  <path d="M384 128a64 64 0 0 0-64 64v448a64 64 0 0 0 64 64h448a64 64 0 0 0 64-64V192a64 64 0 0 0-64-64H384zm0-64h448a128 128 0 0 1 128 128v448a128 128 0 0 1-128 128H384a128 128 0 0 1-128-128V192A128 128 0 0 1 384 64z"/>
+                </g>
               </svg>
             </button>
           </div>
