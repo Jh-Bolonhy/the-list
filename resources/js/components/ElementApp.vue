@@ -190,6 +190,7 @@
                 :is-collapsed="collapsedElements[element.id]"
                 :locked-element-id="lockedElementId"
                 :all-elements="elements"
+                :view-mode="viewMode"
               />
             </template>
           </transition-group>

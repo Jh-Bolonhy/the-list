@@ -316,6 +316,10 @@ export default {
     allElements: {
       type: Array,
       default: () => []
+    },
+    viewMode: {
+      type: String,
+      default: 'active'
     }
   },
   emits: [
@@ -716,7 +720,15 @@ export default {
      */
     getAllDescendants(elementId, level = 0) {
       const descendants = [];
-      const children = this.allElements.filter(e => Number(e.parent_element_id) === Number(elementId));
+      let children = this.allElements.filter(e => Number(e.parent_element_id) === Number(elementId));
+      
+      // Filter children based on viewMode
+      if (this.viewMode === 'active') {
+        children = children.filter(e => !Boolean(e.archived));
+      } else if (this.viewMode === 'archived') {
+        children = children.filter(e => Boolean(e.archived));
+      }
+      // 'both' mode - no filtering needed
       
       for (const child of children) {
         descendants.push({ element: child, level: level + 1 });
