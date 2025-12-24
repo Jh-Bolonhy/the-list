@@ -67,11 +67,11 @@
       </div>
       <div v-else class="overflow-hidden relative">
         <div class="relative overflow-hidden" :style="{
-          paddingRight: hasChildren && !element.archived ? '4.5rem' : '2.25rem'
+          paddingRight: titleContainerPaddingRight
         }">
           <div
             ref="titleScrollContainer"
-            class="scrollable-text-container"
+            class="scrollable-text-container overflow-hidden"
             @mousedown="startScroll($event, 'title')"
           >
             <h3
@@ -92,7 +92,7 @@
               width: '2rem',
               height: '1.5rem',
               top: '50%',
-              right: hasChildren && !element.archived ? '4.25rem' : '2rem',
+              right: titleContainerPaddingRight,
               transform: 'translateY(-50%)',
               borderRadius: '0.25rem',
               background: `linear-gradient(to right, transparent, ${element.archived ? '#e5e7eb' : '#f9fafb'})`
@@ -378,6 +378,29 @@ export default {
     },
     isScrollingTitle() {
       return this.scrollState.isActive && this.scrollState.type === 'title';
+    },
+    titleContainerPaddingRight() {
+      // Calculate padding based on number of buttons
+      // Each button is 2rem wide, gap between buttons is 0.25rem
+      let buttonCount = 1; // Copy button is always present
+      
+      if (this.hasChildren) {
+        buttonCount += 2; // Copy titles + Copy with children
+        if (!this.element.archived) {
+          buttonCount += 1; // Lock button
+        }
+      }
+      
+      // Total width: buttons + gaps
+      // For 1 button: 2rem
+      // For 2 buttons: 2rem + 0.25rem + 2rem = 4.25rem
+      // For 3 buttons: 2rem + 0.25rem + 2rem + 0.25rem + 2rem = 6.5rem
+      // For 4 buttons: 2rem + 0.25rem + 2rem + 0.25rem + 2rem + 0.25rem + 2rem = 8.75rem
+      const buttonWidth = 2; // rem
+      const gapWidth = 0.25; // rem
+      const totalWidth = buttonCount * buttonWidth + (buttonCount - 1) * gapWidth;
+      
+      return `${totalWidth}rem`;
     },
     combinedStyles() {
       const indentAmount = this.element.level > 0 ? this.element.level * 1.25 : 0;
